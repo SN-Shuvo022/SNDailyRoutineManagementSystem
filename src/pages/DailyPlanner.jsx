@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Plus, Edit3, Trash2, Copy, CalendarDays, AlertTriangle, FileText, Check, ChevronLeft, ChevronRight
+  Plus, Edit3, Trash2, Copy, CalendarDays, AlertTriangle, FileText, Check, ChevronLeft, ChevronRight, FastForward
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import {
@@ -11,6 +11,7 @@ import { CATEGORY_COLORS, FOCUS_BLOCK_COLORS } from '../utils/constants';
 import { getMondaySampleTemplate } from '../utils/sampleData';
 import { saveActivitiesForDate, getActivitiesForDate } from '../utils/storage';
 import ActivityForm from '../components/ActivityForm';
+import ShiftModal from '../components/ShiftModal';
 import Timeline from '../components/Timeline';
 import '../styles/DailyPlanner.css';
 
@@ -23,6 +24,8 @@ export default function DailyPlanner() {
 
   const [showForm, setShowForm] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
+  const [showShiftModal, setShowShiftModal] = useState(false);
+  const [shiftFromTime, setShiftFromTime] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'timeline'
   const [filterType, setFilterType] = useState('All');
 
@@ -96,6 +99,16 @@ export default function DailyPlanner() {
               <ChevronRight size={18} />
             </button>
           </div>
+          <button
+            className="btn btn--outline"
+            onClick={() => {
+              setShiftFromTime(null);
+              setShowShiftModal(true);
+            }}
+            title="Shift remaining activities (+30m, +15m) without changing prayer times"
+          >
+            <FastForward size={16} /> Quick Shift (+30m)
+          </button>
           <button className="btn btn--outline" onClick={handleLoadTemplate} title="Load Monday routine template">
             <FileText size={16} /> Sample Template
           </button>
@@ -214,6 +227,16 @@ export default function DailyPlanner() {
                   {act.notes && <p className="activity-card__notes">{act.notes}</p>}
                 </div>
                 <div className="activity-card__actions">
+                  <button
+                    className="icon-btn"
+                    onClick={() => {
+                      setShiftFromTime(act.endTime);
+                      setShowShiftModal(true);
+                    }}
+                    title={`Shift all activities after "${act.title}"`}
+                  >
+                    <FastForward size={16} />
+                  </button>
                   <button className="icon-btn" onClick={() => handleEdit(act)} title="Edit Activity">
                     <Edit3 size={16} />
                   </button>
@@ -243,6 +266,17 @@ export default function DailyPlanner() {
             setShowForm(false);
             setEditingActivity(null);
           }}
+          dateStr={selectedDate}
+        />
+      )}
+
+      {showShiftModal && (
+        <ShiftModal
+          onClose={() => {
+            setShowShiftModal(false);
+            setShiftFromTime(null);
+          }}
+          defaultFromTime={shiftFromTime}
           dateStr={selectedDate}
         />
       )}

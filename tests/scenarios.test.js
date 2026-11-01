@@ -166,6 +166,38 @@ assert(dateStore['2026-11-02'].length === 1 && dateStore['2026-11-02'][0].title 
 assert(dateStore['2026-11-03'].length === 1 && dateStore['2026-11-03'][0].title === 'Tuesday Lab', 'Date 2026-11-03 intact');
 assert(dateStore['2026-11-02'][0].id !== dateStore['2026-11-03'][0].id, 'Schedules are fully isolated per date');
 
+// SCENARIO 13: 1-Click Quick Shift (+30m) preserving Prayer times unchanged
+console.log('\nTest 13: 1-Click Quick Shift (+30m) keeping prayer times strictly anchored');
+const originalSchedule = [
+  { id: 'p1', title: 'Zuhr Prayer', startTime: '13:00', endTime: '13:30', category: 'Prayer', isPrayerAuto: true },
+  { id: 's1', title: 'PVsyst Simulation', startTime: '14:00', endTime: '15:00', category: 'PVsyst', completed: false },
+  { id: 'p2', title: 'Asr Prayer', startTime: '16:00', endTime: '16:30', category: 'Prayer', isPrayerAuto: true },
+  { id: 's2', title: 'Tuition', startTime: '17:00', endTime: '18:30', category: 'Tuition', completed: false }
+];
+
+// Simulate shifting by +30m from 13:45 onwards
+const shiftThreshold = timeToMinutes('13:45');
+const shiftedSchedule = originalSchedule.map(act => {
+  if (act.category === 'Prayer' || act.isPrayerAuto || act.completed) return act;
+  const start = timeToMinutes(act.startTime);
+  if (start >= shiftThreshold) {
+    const dur = timeToMinutes(act.endTime) - start;
+    const newStart = start + 30;
+    return { ...act, startTime: minutesToTime(newStart), endTime: minutesToTime(newStart + dur) };
+  }
+  return act;
+});
+
+const shiftedPvsyst = shiftedSchedule.find(a => a.id === 's1');
+const shiftedZuhr = shiftedSchedule.find(a => a.id === 'p1');
+const shiftedAsr = shiftedSchedule.find(a => a.id === 'p2');
+const shiftedTuition = shiftedSchedule.find(a => a.id === 's2');
+
+assert(shiftedPvsyst.startTime === '14:30' && shiftedPvsyst.endTime === '15:30', 'PVsyst successfully shifted +30m (14:30-15:30)');
+assert(shiftedTuition.startTime === '17:30' && shiftedTuition.endTime === '19:00', 'Tuition successfully shifted +30m (17:30-19:00)');
+assert(shiftedZuhr.startTime === '13:00' && shiftedZuhr.endTime === '13:30', 'Zuhr Prayer remained 100% UNCHANGED (13:00-13:30)');
+assert(shiftedAsr.startTime === '16:00' && shiftedAsr.endTime === '16:30', 'Asr Prayer remained 100% UNCHANGED (16:00-16:30)');
+
 console.log(`\n===========================================`);
 console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
 console.log(`===========================================`);

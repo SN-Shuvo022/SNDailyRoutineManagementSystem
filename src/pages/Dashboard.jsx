@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   CalendarDays, CheckCircle2, Clock, ListTodo, Target, ArrowRight,
-  BookOpen, Zap, TrendingUp, AlertCircle
+  BookOpen, Zap, TrendingUp, AlertCircle, FastForward
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import {
@@ -9,6 +9,7 @@ import {
   timeToMinutes, formatTimeDisplay, getGreeting, calculateFreeSlots, formatDateStr
 } from '../utils/timeUtils';
 import Timeline from '../components/Timeline';
+import ShiftModal from '../components/ShiftModal';
 import '../styles/Dashboard.css';
 
 export default function Dashboard() {
@@ -18,6 +19,7 @@ export default function Dashboard() {
     activities
   } = useApp();
 
+  const [showShiftModal, setShowShiftModal] = useState(false);
   const today = getTodayStr();
   const todayActivities = useMemo(
     () => getAllActivitiesForDate(today),
@@ -82,10 +84,16 @@ export default function Dashboard() {
           <h2 className="dashboard__title">Dashboard</h2>
           <p className="dashboard__subtitle">Your productivity at a glance</p>
         </div>
-        <button className="btn btn--primary btn--lg" onClick={handlePlanTomorrow}>
-          <CalendarDays size={18} />
-          Plan Tomorrow
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button className="btn btn--outline btn--lg" onClick={() => setShowShiftModal(true)} title="Shift today's remaining activities (+30m, +15m) without changing prayer times">
+            <FastForward size={18} />
+            Quick Shift (+30m)
+          </button>
+          <button className="btn btn--primary btn--lg" onClick={handlePlanTomorrow}>
+            <CalendarDays size={18} />
+            Plan Tomorrow
+          </button>
+        </div>
       </div>
 
       <div className="dashboard__stats">
@@ -230,6 +238,13 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {showShiftModal && (
+        <ShiftModal
+          onClose={() => setShowShiftModal(false)}
+          dateStr={today}
+        />
+      )}
     </div>
   );
 }

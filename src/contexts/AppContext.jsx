@@ -7,7 +7,7 @@ import {
   getCompletionHistory, saveCompletionHistory,
   getLearningTracker, saveLearningTracker,
 } from '../utils/storage';
-import { getTodayStr, generateId } from '../utils/timeUtils';
+import { getTodayStr, generateId, timeToMinutes, minutesToTime } from '../utils/timeUtils';
 import { getDefaultTasks } from '../utils/suggestions';
 
 const AppContext = createContext();
@@ -252,6 +252,63 @@ export function AppProvider({ children }) {
     });
   }, []);
 
+  const shiftActivities = useCallback((shiftMinutes, fromTime = null, targetDateStr = null) => {
+    const targetDate = targetDateStr || selectedDate;
+    const current = getActivitiesForDate(targetDate);
+    if (!current || current.length === 0) return 0;
+
+    let thresholdMinutes = 0;
+    if (fromTime) {
+      thresholdMinutes = timeToMinutes(fromTime);
+    } else {
+      const today = getTodayStr();
+      if (targetDate === today) {
+        const now = new Date();
+        thresholdMinutes = now.getHours() * 60 + now.getMinutes();
+      } else {
+        thresholdMinutes = timeToMinutes(settings?.dayStartTime || '05:00');
+      }
+    }
+
+    let shiftedCount = 0;
+    const updated = current.map(act => {
+      // 1. Prayer activities are locked & untouched
+      if (act.category === 'Prayer' || act.isPrayerAuto) {
+        return act;
+      }
+
+      // 2. Already completed activities are not altered
+      if (act.completed) {
+        return act;
+      }
+
+      const actStart = timeToMinutes(act.startTime);
+      // 3. Shift activities starting at or after threshold
+      if (actStart >= thresholdMinutes) {
+        const duration = timeToMinutes(act.endTime) - actStart;
+        const newStartMin = Math.max(0, actStart + shiftMinutes);
+        const newEndMin = Math.min(24 * 60 - 1, newStartMin + duration);
+
+        shiftedCount++;
+        return {
+          ...act,
+          startTime: minutesToTime(newStartMin),
+          endTime: minutesToTime(newEndMin)
+        };
+      }
+
+      return act;
+    });
+
+    saveActivitiesForDate(targetDate, updated);
+    if (targetDate === selectedDate) {
+      setActivities(updated);
+    } else {
+      setActivities([...getActivitiesForDate(selectedDate)]);
+    }
+    return shiftedCount;
+  }, [selectedDate, settings]);
+
   const value = {
     currentPage, setCurrentPage,
     selectedDate, setSelectedDate,
@@ -268,6 +325,7 @@ export function AppProvider({ children }) {
     addTask, updateTask, deleteTask,
     updateSettings, updatePrayerSettings,
     addLearningItem, updateLearningItem, deleteLearningItem,
+    shiftActivities,
   };
 
   if (!settings || !prayerSettings) return null; // Loading
