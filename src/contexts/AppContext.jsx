@@ -37,6 +37,7 @@ export function AppProvider({ children }) {
   const [firebaseConfig, setFirebaseConfig] = useState(getStoredFirebaseConfig());
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(isFirebaseReady());
   const [firebaseError, setFirebaseError] = useState(null);
+  const [lastRemoteSyncAt, setLastRemoteSyncAt] = useState(null);
 
   const lastLocalWriteTimeRef = useRef(0);
   const isSyncingFromRemoteRef = useRef(false);
@@ -636,6 +637,7 @@ export function AppProvider({ children }) {
       isSyncingFromRemoteRef.current = true;
       try {
         importSyncPayload(remoteDoc.data);
+        setLastRemoteSyncAt(new Date().toLocaleTimeString());
       } finally {
         setTimeout(() => {
           isSyncingFromRemoteRef.current = false;
@@ -666,6 +668,7 @@ export function AppProvider({ children }) {
     firebaseConfig,
     isFirebaseConnected,
     firebaseError,
+    lastRemoteSyncAt,
     saveFirebaseSettings,
     removeFirebaseSettings,
     triggerAutoCloudSync,
