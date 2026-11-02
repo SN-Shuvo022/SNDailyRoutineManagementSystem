@@ -422,12 +422,22 @@ export default function AccountSyncModal({ onClose }) {
                 </p>
 
                 {/* Account Link Verification Badge */}
-                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '0.65rem 0.85rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '0.825rem', color: '#475569' }}>
-                    📱 Linked Profile ID: <strong>{accountSync?.accountId || 'SN-Shuvo'}</strong>
-                  </span>
-                  <span style={{ fontSize: '0.75rem', background: '#D1FAE5', color: '#065F46', padding: '0.15rem 0.5rem', borderRadius: '9999px', fontWeight: 600 }}>
-                    Matching Phone & Laptop
+                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '0.75rem 0.85rem', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.85rem', color: '#1E293B', fontWeight: 600 }}>
+                      📱 Linked Profile ID: <span style={{ color: '#2563EB', backgroundColor: '#EFF6FF', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>{accountSync?.accountId || 'SN-Shuvo'}</span>
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn--sm btn--outline"
+                      onClick={() => setActiveTab('profile')}
+                      style={{ fontSize: '0.75rem', padding: '0.2rem 0.55rem', borderColor: '#CBD5E1' }}
+                    >
+                      ✏️ Change ID
+                    </button>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
+                    ⚠️ লাইভ সিঙ্ক হওয়ার জন্য ফোন এবং ল্যাপটপ দুটিতেই এই Profile ID হুবহু একই (e.g. <code>SN-Shuvo</code>) হতে হবে।
                   </span>
                 </div>
 
