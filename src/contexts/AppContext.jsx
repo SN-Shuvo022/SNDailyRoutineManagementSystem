@@ -33,6 +33,7 @@ export function AppProvider({ children }) {
   const [thesisConfig, setThesisConfig] = useState(null);
   const [accountSync, setAccountSync] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [firebaseConfig, setFirebaseConfig] = useState(getStoredFirebaseConfig());
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(isFirebaseReady());
 
@@ -620,6 +621,7 @@ export function AppProvider({ children }) {
     mvdDates,
     thesisConfig,
     accountSync,
+    isSyncModalOpen, setIsSyncModalOpen,
     firebaseConfig,
     isFirebaseConnected,
     saveFirebaseSettings,

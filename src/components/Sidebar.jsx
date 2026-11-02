@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   LayoutDashboard, CalendarDays, Clock, Target, BarChart3, Settings, X, Smartphone
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
-import AccountSyncModal from './AccountSyncModal';
 import '../styles/Sidebar.css';
 
 const navItems = [
@@ -16,8 +15,7 @@ const navItems = [
 ];
 
 export default function Sidebar() {
-  const { currentPage, setCurrentPage, sidebarOpen, setSidebarOpen, accountSync } = useApp();
-  const [showSyncModal, setShowSyncModal] = useState(false);
+  const { currentPage, setCurrentPage, sidebarOpen, setSidebarOpen, accountSync, setIsSyncModalOpen } = useApp();
 
   return (
     <>
@@ -60,7 +58,7 @@ export default function Sidebar() {
             className="sidebar__nav-item"
             style={{ marginTop: '0.5rem', color: 'var(--primary-600)', backgroundColor: 'var(--primary-50)' }}
             onClick={() => {
-              setShowSyncModal(true);
+              setIsSyncModalOpen(true);
               setSidebarOpen(false);
             }}
           >
@@ -74,10 +72,6 @@ export default function Sidebar() {
           <p className="sidebar__version">v1.2 · Solar Energy Focus</p>
         </div>
       </aside>
-
-      {showSyncModal && (
-        <AccountSyncModal onClose={() => setShowSyncModal(false)} />
-      )}
     </>
   );
 }

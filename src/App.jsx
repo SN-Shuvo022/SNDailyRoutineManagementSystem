@@ -8,10 +8,11 @@ import FreeTime from './pages/FreeTime';
 import GoalsAndTasks from './pages/GoalsAndTasks';
 import Progress from './pages/Progress';
 import Settings from './pages/Settings';
+import AccountSyncModal from './components/AccountSyncModal';
 import './App.css';
 
 function MainContent() {
-  const { currentPage } = useApp();
+  const { currentPage, isSyncModalOpen, setIsSyncModalOpen } = useApp();
 
   return (
     <div className="app-layout">
@@ -27,6 +28,10 @@ function MainContent() {
           {currentPage === 'settings' && <Settings />}
         </main>
       </div>
+
+      {isSyncModalOpen && (
+        <AccountSyncModal onClose={() => setIsSyncModalOpen(false)} />
+      )}
     </div>
   );
 }

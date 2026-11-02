@@ -14,14 +14,13 @@ export default function Settings() {
   const {
     settings, updateSettings, prayerSettings, updatePrayerSettings,
     thesisConfig, updateThesisConfig, toggleThesisMilestone, addThesisMilestone, deleteThesisMilestone,
-    accountSync, isFirebaseConnected, setSelectedDate, setCurrentPage, setActivities
+    accountSync, isFirebaseConnected, setIsSyncModalOpen, setSelectedDate, setCurrentPage, setActivities
   } = useApp();
 
   const [formSettings, setFormSettings] = useState({ ...settings });
   const [formPrayers, setFormPrayers] = useState({ ...prayerSettings });
   const [formThesis, setFormThesis] = useState({ ...thesisConfig });
   const [newMilestoneText, setNewMilestoneText] = useState('');
-  const [showSyncModal, setShowSyncModal] = useState(false);
   const [savedMessage, setSavedMessage] = useState(false);
   const [importError, setImportError] = useState(null);
 
@@ -282,7 +281,7 @@ export default function Settings() {
               <button
                 type="button"
                 className="btn btn--primary btn--sm"
-                onClick={() => setShowSyncModal(true)}
+                onClick={() => setIsSyncModalOpen(true)}
               >
                 <Smartphone size={14} /> Open Sync Manager
               </button>
@@ -419,10 +418,6 @@ export default function Settings() {
           </div>
         </div>
       </form>
-
-      {showSyncModal && (
-        <AccountSyncModal onClose={() => setShowSyncModal(false)} />
-      )}
     </div>
   );
 }

@@ -16,10 +16,10 @@ export default function AccountSyncModal({ onClose }) {
     triggerAutoCloudSync
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState(isFirebaseConnected ? 'firebase' : accountSync.isLoggedIn ? 'firebase' : 'profile');
-  const [accountIdInput, setAccountIdInput] = useState(accountSync.accountId || 'SN-Shuvo');
-  const [syncPinInput, setSyncPinInput] = useState(accountSync.syncPin || '1234');
-  const [displayNameInput, setDisplayNameInput] = useState(settings.name || 'SN Shuvo');
+  const [activeTab, setActiveTab] = useState('firebase');
+  const [accountIdInput, setAccountIdInput] = useState(accountSync?.accountId || 'SN-Shuvo');
+  const [syncPinInput, setSyncPinInput] = useState(accountSync?.syncPin || '1234');
+  const [displayNameInput, setDisplayNameInput] = useState(settings?.name || 'SN Shuvo');
 
   // Firebase tab states
   const [firebaseInput, setFirebaseInput] = useState(
@@ -140,7 +140,7 @@ export default function AccountSyncModal({ onClose }) {
   };
 
   const handleCloudUpload = async () => {
-    if (!accountSync.accountId) {
+    if (!accountSync?.accountId) {
       setSyncErrorMsg('Please set your Account ID first in the Account Profile tab.');
       return;
     }
@@ -174,7 +174,7 @@ export default function AccountSyncModal({ onClose }) {
   };
 
   const handleCloudPull = async () => {
-    if (!accountSync.accountId) {
+    if (!accountSync?.accountId) {
       setSyncErrorMsg('Please set your Account ID first in the Account Profile tab.');
       return;
     }
@@ -308,25 +308,25 @@ export default function AccountSyncModal({ onClose }) {
           <div className="account-badge-card">
             <div className="account-badge-card__info">
               <div className="account-avatar">
-                {(accountSync.accountId || 'SN')[0].toUpperCase()}
+                {(accountSync?.accountId || 'SN')[0].toUpperCase()}
               </div>
               <div>
                 <div className="account-badge-card__title">
-                  {accountSync.isLoggedIn ? (accountSync.accountId || 'SN-Shuvo') : 'Guest User (Not Registered)'}
+                  {accountSync?.isLoggedIn ? (accountSync.accountId || 'SN-Shuvo') : 'Guest User (Not Registered)'}
                 </div>
                 <div className="account-badge-card__meta">
-                  <span className={`sync-dot ${isFirebaseConnected ? 'sync-dot--active' : accountSync.isLoggedIn ? 'sync-dot--active' : ''}`} />
+                  <span className={`sync-dot ${isFirebaseConnected ? 'sync-dot--active' : accountSync?.isLoggedIn ? 'sync-dot--active' : ''}`} />
                   <span>
                     {isFirebaseConnected
                       ? '🔥 Firebase Real-Time Sub-Second Sync Active'
-                      : accountSync.isLoggedIn
+                      : accountSync?.isLoggedIn
                       ? 'Local Account Active (Connect Firebase for 0.1s Live Sync)'
                       : 'Local Storage Only (Offline)'}
                   </span>
                 </div>
               </div>
             </div>
-            {accountSync.isLoggedIn && (
+            {accountSync?.isLoggedIn && (
               <button
                 className="btn btn--sm btn--outline"
                 onClick={logoutAccount}
@@ -498,7 +498,7 @@ export default function AccountSyncModal({ onClose }) {
                   <span>Online Cloud Vault Sync</span>
                 </div>
                 <p className="sync-section__desc">
-                  আপনার অ্যাকাউন্ট আইডি (<strong>{accountSync.accountId || 'SN-Shuvo'}</strong>) এবং সিকিউরিটি পিনের মাধ্যমে ক্লাউডে ব্যাকআপ সংরক্ষণ ও রিস্টোর করুন।
+                  আপনার অ্যাকাউন্ট আইডি (<strong>{accountSync?.accountId || 'SN-Shuvo'}</strong>) এবং সিকিউরিটি পিনের মাধ্যমে ক্লাউডে ব্যাকআপ সংরক্ষণ ও রিস্টোর করুন।
                 </p>
 
                 <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
@@ -528,7 +528,7 @@ export default function AccountSyncModal({ onClose }) {
                   🔒 Your data is stored encrypted with your unique Account ID and PIN. Both your laptop and phone must use the same Account ID and PIN to sync.
                 </p>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Connected Account: <strong>{accountSync.accountId || 'None'}</strong> · PIN Protected: <strong>Yes</strong>
+                  Connected Account: <strong>{accountSync?.accountId || 'None'}</strong> · PIN Protected: <strong>Yes</strong>
                 </div>
               </div>
             </div>

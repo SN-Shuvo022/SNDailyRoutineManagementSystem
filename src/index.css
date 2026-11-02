@@ -194,3 +194,80 @@ input, select, textarea {
   flex-wrap: wrap;
   justify-content: center;
 }
+
+/* Global Modal Styles */
+.modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 10000 !important;
+  padding: 1rem !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+.modal {
+  background-color: var(--bg-surface, #FFFFFF) !important;
+  border-radius: var(--radius-lg, 16px) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  width: 100% !important;
+  max-width: 580px !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+  z-index: 10001 !important;
+  border: 1px solid var(--border-light, #E2E8F0) !important;
+  animation: modalFadeIn 0.15s ease-out !important;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal__header {
+  padding: 1.25rem 1.5rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  border-bottom: 1px solid var(--border-light) !important;
+  background-color: var(--bg-surface) !important;
+}
+
+.modal__header h3 {
+  font-size: 1.1rem !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+.modal__close {
+  color: var(--text-muted) !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: var(--radius-sm) !important;
+  border: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.modal__close:hover {
+  background-color: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
+}
