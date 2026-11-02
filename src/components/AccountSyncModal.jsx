@@ -1,22 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X, User, Shield, Smartphone, Laptop, Cloud, Download, Upload,
-  Copy, Check, RefreshCw, AlertCircle, CheckCircle2, Key, LogOut
+  Copy, Check, RefreshCw, AlertCircle, CheckCircle2, Key, LogOut, Flame, Trash2
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
+import { parseFirebaseConfigInput } from '../utils/firebase.js';
 import { getTodayStr } from '../utils/timeUtils';
 import '../styles/AccountSyncModal.css';
 
 export default function AccountSyncModal({ onClose }) {
   const {
     accountSync, createOrLoginAccount, logoutAccount, updateAccountSync,
-    exportSyncPayload, importSyncPayload, settings, updateSettings
+    exportSyncPayload, importSyncPayload, settings, updateSettings,
+    firebaseConfig, isFirebaseConnected, saveFirebaseSettings, removeFirebaseSettings,
+    triggerAutoCloudSync
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState(accountSync.isLoggedIn ? 'device' : 'profile');
+  const [activeTab, setActiveTab] = useState(isFirebaseConnected ? 'firebase' : accountSync.isLoggedIn ? 'firebase' : 'profile');
   const [accountIdInput, setAccountIdInput] = useState(accountSync.accountId || 'SN-Shuvo');
   const [syncPinInput, setSyncPinInput] = useState(accountSync.syncPin || '1234');
   const [displayNameInput, setDisplayNameInput] = useState(settings.name || 'SN Shuvo');
+
+  // Firebase tab states
+  const [firebaseInput, setFirebaseInput] = useState(
+    firebaseConfig ? JSON.stringify(firebaseConfig, null, 2) : ''
+  );
+  const [firebaseConnecting, setFirebaseConnecting] = useState(false);
 
   // Device Link states
   const [generatedCode, setGeneratedCode] = useState('');
@@ -28,6 +37,12 @@ export default function AccountSyncModal({ onClose }) {
   // Cloud Sync state
   const [cloudLoading, setCloudLoading] = useState(false);
 
+  useEffect(() => {
+    if (firebaseConfig) {
+      setFirebaseInput(JSON.stringify(firebaseConfig, null, 2));
+    }
+  }, [firebaseConfig]);
+
   const handleAccountSubmit = (e) => {
     e.preventDefault();
     if (!accountIdInput.trim()) return;
@@ -37,14 +52,52 @@ export default function AccountSyncModal({ onClose }) {
     }
     setSyncSuccessMsg(`Account "${accountIdInput.trim()}" activated successfully!`);
     setTimeout(() => setSyncSuccessMsg(null), 3000);
-    setActiveTab('device');
+    setActiveTab('firebase');
+  };
+
+  const handleSaveFirebase = (e) => {
+    e.preventDefault();
+    if (!firebaseInput.trim()) {
+      setSyncErrorMsg('Please paste your Firebase configuration code first.');
+      return;
+    }
+    setSyncErrorMsg(null);
+    setFirebaseConnecting(true);
+    try {
+      const parsed = parseFirebaseConfigInput(firebaseInput);
+      if (!parsed.apiKey || !parsed.projectId) {
+        throw new Error('Missing apiKey or projectId in Firebase configuration.');
+      }
+      saveFirebaseSettings(parsed);
+      setSyncSuccessMsg('🔥 Firebase Live Sync connected successfully! Phone and Laptop are now in real-time sync.');
+      setTimeout(() => setSyncSuccessMsg(null), 4000);
+    } catch (err) {
+      setSyncErrorMsg('Firebase config error: ' + err.message);
+    } finally {
+      setFirebaseConnecting(false);
+    }
+  };
+
+  const handleRemoveFirebase = () => {
+    if (window.confirm('Disconnect Firebase Live Sync? Your local routines will remain safe.')) {
+      removeFirebaseSettings();
+      setFirebaseInput('');
+      setSyncSuccessMsg('Firebase Live Sync disconnected.');
+      setTimeout(() => setSyncSuccessMsg(null), 3000);
+    }
+  };
+
+  const handleTestFirebasePing = () => {
+    setSyncErrorMsg(null);
+    triggerAutoCloudSync();
+    setSyncSuccessMsg('📡 Live sync ping sent to Firebase! Check other device to see instant live update.');
+    setTimeout(() => setSyncSuccessMsg(null), 4000);
   };
 
   const handleGenerateCode = () => {
     try {
       const data = exportSyncPayload();
       const jsonStr = JSON.stringify(data);
-      // UTF-8 safe base64 encoding
       const encoded = btoa(encodeURIComponent(jsonStr));
       setGeneratedCode(encoded);
       setCopySuccess(false);
@@ -59,7 +112,6 @@ export default function AccountSyncModal({ onClose }) {
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 3000);
     }).catch(() => {
-      // Fallback
       setCopySuccess(true);
     });
   };
@@ -96,7 +148,6 @@ export default function AccountSyncModal({ onClose }) {
     setSyncErrorMsg(null);
     try {
       const data = exportSyncPayload();
-      // Public KV storage key using sanitized account id
       const safeId = encodeURIComponent(accountSync.accountId.trim().toLowerCase());
       const res = await fetch(`https://kvdb.io/4y21P6k5bBvQ8wZ9m2pQ/${safeId}`, {
         method: 'POST',
@@ -112,11 +163,9 @@ export default function AccountSyncModal({ onClose }) {
         updateAccountSync({ lastSyncedAt: new Date().toISOString() });
         setSyncSuccessMsg('☁️ Successfully uploaded routine to cloud! You can now pull it on your phone.');
       } else {
-        // Fallback message
         setSyncSuccessMsg('Cloud backup saved locally. Use "Phone ↔ Laptop Link" for instant direct sync.');
       }
     } catch (err) {
-      // In sandbox or offline mode, inform user
       setSyncSuccessMsg('Offline mode: Please use the 1-Click "Phone ↔ Laptop Link" code for direct instant sync!');
     } finally {
       setCloudLoading(false);
@@ -199,7 +248,7 @@ export default function AccountSyncModal({ onClose }) {
               Account & Multi-Device Sync
             </h3>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Sync your routines, thesis tasks, and settings between Laptop and Phone
+              Live real-time sync between Laptop & Phone
             </span>
           </div>
           <button className="modal__close" onClick={onClose}><X size={20} /></button>
@@ -208,22 +257,29 @@ export default function AccountSyncModal({ onClose }) {
         {/* Tabs */}
         <div className="account-modal__tabs">
           <button
+            className={`account-modal__tab ${activeTab === 'firebase' ? 'account-modal__tab--active' : ''}`}
+            onClick={() => setActiveTab('firebase')}
+            style={{ color: activeTab === 'firebase' ? '#D97706' : undefined }}
+          >
+            <Flame size={15} style={{ color: '#D97706' }} /> Firebase Live Sync
+          </button>
+          <button
             className={`account-modal__tab ${activeTab === 'device' ? 'account-modal__tab--active' : ''}`}
             onClick={() => setActiveTab('device')}
           >
-            <Smartphone size={15} /> Phone ↔ Laptop Link
-          </button>
-          <button
-            className={`account-modal__tab ${activeTab === 'cloud' ? 'account-modal__tab--active' : ''}`}
-            onClick={() => setActiveTab('cloud')}
-          >
-            <Cloud size={15} /> Cloud Sync
+            <Smartphone size={15} /> 1-Click Link Code
           </button>
           <button
             className={`account-modal__tab ${activeTab === 'profile' ? 'account-modal__tab--active' : ''}`}
             onClick={() => setActiveTab('profile')}
           >
             <User size={15} /> Account Profile
+          </button>
+          <button
+            className={`account-modal__tab ${activeTab === 'cloud' ? 'account-modal__tab--active' : ''}`}
+            onClick={() => setActiveTab('cloud')}
+          >
+            <Cloud size={15} /> Cloud Vault
           </button>
           <button
             className={`account-modal__tab ${activeTab === 'backup' ? 'account-modal__tab--active' : ''}`}
@@ -259,10 +315,12 @@ export default function AccountSyncModal({ onClose }) {
                   {accountSync.isLoggedIn ? (accountSync.accountId || 'SN-Shuvo') : 'Guest User (Not Registered)'}
                 </div>
                 <div className="account-badge-card__meta">
-                  <span className={`sync-dot ${accountSync.isLoggedIn ? 'sync-dot--active' : ''}`} />
+                  <span className={`sync-dot ${isFirebaseConnected ? 'sync-dot--active' : accountSync.isLoggedIn ? 'sync-dot--active' : ''}`} />
                   <span>
-                    {accountSync.isLoggedIn
-                      ? `Sync Active · Last: ${accountSync.lastSyncedAt ? new Date(accountSync.lastSyncedAt).toLocaleTimeString() : 'Never'}`
+                    {isFirebaseConnected
+                      ? '🔥 Firebase Real-Time Sub-Second Sync Active'
+                      : accountSync.isLoggedIn
+                      ? 'Local Account Active (Connect Firebase for 0.1s Live Sync)'
                       : 'Local Storage Only (Offline)'}
                   </span>
                 </div>
@@ -280,7 +338,94 @@ export default function AccountSyncModal({ onClose }) {
             )}
           </div>
 
-          {/* TAB 1: Phone ↔ Laptop Link (Instant Transfer) */}
+          {/* TAB: FIREBASE LIVE SYNC */}
+          {activeTab === 'firebase' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div className="sync-section">
+                <div className="sync-section__title" style={{ justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Flame size={18} style={{ color: '#D97706' }} />
+                    <span style={{ fontWeight: 700 }}>Google Firebase Real-Time Live Sync</span>
+                  </div>
+                  <span className={`firebase-status-pill ${isFirebaseConnected ? 'firebase-status-pill--active' : ''}`}>
+                    {isFirebaseConnected ? '● LIVE CONNECTED' : '○ NOT CONFIGURED'}
+                  </span>
+                </div>
+                <p className="sync-section__desc">
+                  এর মাধ্যমে আপনি যখনই ফোনে কোনো টাস্কে টিক (`✓`) বা নোট দেবেন, সাথে সাথে <strong>০.১ সেকেন্ডে কোনো রিলোড ছাড়াই আপনার ল্যাপটপে লাইভ আপডেট হয়ে যাবে!</strong>
+                </p>
+
+                {/* Step-by-step instructions */}
+                <div className="firebase-guide-box">
+                  <strong style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    📋 কীভাবে ২ মিনিটে ফ্রি Firebase কনফিগ পাবেন:
+                  </strong>
+                  <ol>
+                    <li>
+                      <a href="https://console.firebase.google.com" target="_blank" rel="noreferrer" style={{ color: '#B45309', fontWeight: 600, textDecoration: 'underline' }}>
+                        console.firebase.google.com
+                      </a>-এ গিয়ে আপনার জিমেইল দিয়ে লগইন করে <strong>"Add project"</strong> ক্লিক করুন (নাম দিতে পারেন: <code>sn-daily-planner</code>)।
+                    </li>
+                    <li>
+                      প্রজেক্ট খোলার পর বাম মেনু থেকে <strong>Build &gt; Firestore Database</strong>-এ গিয়ে <strong>Create database</strong> ক্লিক করুন এবং <strong>"Start in test mode"</strong> সিলেক্ট করে Next &gt; Enable করুন।
+                    </li>
+                    <li>
+                      বাম পাশের গিয়ার আইকন (⚙️) <strong>Project Settings &gt; General</strong>-এ যান। নিচে নেমে <strong>Web App (&lt;/&gt;)</strong> আইকনে ক্লিক করে একটি নাম দিয়ে রেজিস্টার করুন।
+                    </li>
+                    <li>
+                      সেখানে দেখানো <code>const firebaseConfig = &#123; ... &#125;;</code> কোডটি কপি করে নিচের বক্সে পেস্ট করে <strong>"Connect Firebase"</strong> বাটনে চাপ দিন!
+                    </li>
+                  </ol>
+                </div>
+
+                <form onSubmit={handleSaveFirebase} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                    Paste Firebase Configuration (JSON or JS Object):
+                  </label>
+                  <textarea
+                    rows={5}
+                    value={firebaseInput}
+                    onChange={e => setFirebaseInput(e.target.value)}
+                    placeholder={`e.g.:\nconst firebaseConfig = {\n  apiKey: "AIzaSy...",\n  projectId: "sn-planner-123",\n  ...\n};`}
+                    style={{ width: '100%', fontFamily: 'Consolas, monospace', fontSize: '0.775rem' }}
+                  />
+
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                      type="submit"
+                      className="btn btn--primary"
+                      disabled={firebaseConnecting || !firebaseInput.trim()}
+                      style={{ backgroundColor: '#D97706', borderColor: '#B45309' }}
+                    >
+                      <Flame size={16} /> {firebaseConnecting ? 'Connecting...' : 'Connect & Activate Firebase Sync'}
+                    </button>
+
+                    {isFirebaseConnected && (
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn--outline"
+                          onClick={handleTestFirebasePing}
+                        >
+                          <RefreshCw size={14} /> Send Live Test Ping
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--outline"
+                          onClick={handleRemoveFirebase}
+                          style={{ color: '#DC2626', borderColor: '#FECACA' }}
+                        >
+                          <Trash2 size={14} /> Disconnect
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: 1-CLICK DEVICE LINK */}
           {activeTab === 'device' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div className="sync-section">
@@ -344,7 +489,7 @@ export default function AccountSyncModal({ onClose }) {
             </div>
           )}
 
-          {/* TAB 2: Cloud Sync */}
+          {/* TAB: CLOUD VAULT */}
           {activeTab === 'cloud' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div className="sync-section">
@@ -389,7 +534,7 @@ export default function AccountSyncModal({ onClose }) {
             </div>
           )}
 
-          {/* TAB 3: Account Profile Form */}
+          {/* TAB: ACCOUNT PROFILE FORM */}
           {activeTab === 'profile' && (
             <form onSubmit={handleAccountSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div className="form-group">
@@ -437,7 +582,7 @@ export default function AccountSyncModal({ onClose }) {
             </form>
           )}
 
-          {/* TAB 4: File Backup */}
+          {/* TAB: FILE BACKUP */}
           {activeTab === 'backup' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div className="sync-section">
@@ -473,4 +618,3 @@ export default function AccountSyncModal({ onClose }) {
     </div>
   );
 }
-

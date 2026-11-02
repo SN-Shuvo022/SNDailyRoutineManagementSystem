@@ -188,3 +188,40 @@
   flex-shrink: 0;
 }
 
+
+.firebase-guide-box {
+  background-color: #FFFBEB;
+  border: 1px solid #FCD34D;
+  border-radius: var(--radius-md);
+  padding: 1rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.825rem;
+  color: #78350F;
+  line-height: 1.5;
+}
+
+.firebase-guide-box ol {
+  margin-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.firebase-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  background-color: #F1F5F9;
+  color: #475569;
+}
+
+.firebase-status-pill--active {
+  background-color: #D1FAE5;
+  color: #065F46;
+}

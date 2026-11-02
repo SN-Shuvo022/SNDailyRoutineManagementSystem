@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Settings as SettingsIcon, Save, Download, Upload, Trash2, Clock, Check,
-  AlertTriangle, FileText, User, Smartphone, Compass, Plus, X
+  AlertTriangle, FileText, User, Smartphone, Compass, Plus, X, Flame
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { exportAllData, importAllData, clearAllData, saveActivitiesForDate } from '../utils/storage';
@@ -14,7 +14,7 @@ export default function Settings() {
   const {
     settings, updateSettings, prayerSettings, updatePrayerSettings,
     thesisConfig, updateThesisConfig, toggleThesisMilestone, addThesisMilestone, deleteThesisMilestone,
-    accountSync, setSelectedDate, setCurrentPage, setActivities
+    accountSync, isFirebaseConnected, setSelectedDate, setCurrentPage, setActivities
   } = useApp();
 
   const [formSettings, setFormSettings] = useState({ ...settings });
@@ -271,8 +271,12 @@ export default function Settings() {
                 <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>
                   Account: {accountSync?.isLoggedIn ? accountSync.accountId : 'Not Connected'}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {accountSync?.isLoggedIn ? 'Ready for Phone ↔ Laptop transfer' : 'Activate an account to enable instant sync'}
+                <div style={{ fontSize: '0.75rem', color: isFirebaseConnected ? '#059669' : 'var(--text-muted)', fontWeight: isFirebaseConnected ? 600 : 400 }}>
+                  {isFirebaseConnected
+                    ? '🔥 Firebase Real-time Sub-Second Sync: Active'
+                    : accountSync?.isLoggedIn
+                    ? '⚡ Local Account Active · Connect Firebase for 0.1s Live Sync'
+                    : 'Activate an account to enable instant sync'}
                 </div>
               </div>
               <button

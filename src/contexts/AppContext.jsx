@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import {
   getActivitiesForDate, saveActivitiesForDate, getAllActivities,
   getTaskLibrary, saveTaskLibrary,
@@ -13,6 +13,10 @@ import {
 } from '../utils/storage';
 import { getTodayStr, generateId, timeToMinutes, minutesToTime } from '../utils/timeUtils';
 import { getDefaultTasks } from '../utils/suggestions';
+import {
+  getStoredFirebaseConfig, saveStoredFirebaseConfig,
+  pushToFirestore, listenToFirestore, isFirebaseReady
+} from '../utils/firebase.js';
 
 const AppContext = createContext();
 
@@ -29,6 +33,39 @@ export function AppProvider({ children }) {
   const [thesisConfig, setThesisConfig] = useState(null);
   const [accountSync, setAccountSync] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [firebaseConfig, setFirebaseConfig] = useState(getStoredFirebaseConfig());
+  const [isFirebaseConnected, setIsFirebaseConnected] = useState(isFirebaseReady());
+
+  const lastLocalWriteTimeRef = useRef(0);
+  const isSyncingFromRemoteRef = useRef(false);
+  const cloudSyncTimeoutRef = useRef(null);
+
+  // Trigger debounced cloud push whenever local state updates
+  const triggerAutoCloudSync = useCallback(() => {
+    if (isSyncingFromRemoteRef.current) return;
+    if (cloudSyncTimeoutRef.current) clearTimeout(cloudSyncTimeoutRef.current);
+
+    cloudSyncTimeoutRef.current = setTimeout(async () => {
+      lastLocalWriteTimeRef.current = Date.now();
+      const currentAccount = getAccountSync();
+      if (!currentAccount?.accountId || !currentAccount?.isLoggedIn) return;
+
+      const payload = exportAllData();
+      if (isFirebaseReady()) {
+        const success = await pushToFirestore(currentAccount.accountId, { data: payload });
+        if (success) {
+          setIsFirebaseConnected(true);
+        }
+      }
+
+      setAccountSync(prev => {
+        if (!prev) return prev;
+        const up = { ...prev, lastSyncedAt: new Date().toISOString() };
+        saveAccountSync(up);
+        return up;
+      });
+    }, 400);
+  }, []);
 
   // Load initial data
   useEffect(() => {
@@ -118,8 +155,9 @@ export function AppProvider({ children }) {
     const updated = [...current, newAct];
     saveActivitiesForDate(targetDate, updated);
     setActivities([...updated]);
+    triggerAutoCloudSync();
     return newAct;
-  }, [selectedDate]);
+  }, [selectedDate, triggerAutoCloudSync]);
 
   const updateActivity = useCallback((id, updates, targetDateStr = null) => {
     const targetDate = targetDateStr || selectedDate;
@@ -140,7 +178,8 @@ export function AppProvider({ children }) {
     }
     saveActivitiesForDate(targetDate, updated);
     setActivities([...updated]);
-  }, [selectedDate, getAllActivitiesForDate]);
+    triggerAutoCloudSync();
+  }, [selectedDate, getAllActivitiesForDate, triggerAutoCloudSync]);
 
   const deleteActivity = useCallback((id, targetDateStr = null) => {
     const targetDate = targetDateStr || selectedDate;
@@ -148,7 +187,8 @@ export function AppProvider({ children }) {
     const updated = current.filter(a => a.id !== id);
     saveActivitiesForDate(targetDate, updated);
     setActivities([...updated]);
-  }, [selectedDate]);
+    triggerAutoCloudSync();
+  }, [selectedDate, triggerAutoCloudSync]);
 
   const duplicateActivity = useCallback((id, targetDateStr = null) => {
     const targetDate = targetDateStr || selectedDate;
@@ -159,8 +199,9 @@ export function AppProvider({ children }) {
       const updated = [...current, newAct];
       saveActivitiesForDate(targetDate, updated);
       setActivities([...updated]);
+      triggerAutoCloudSync();
     }
-  }, [selectedDate]);
+  }, [selectedDate, triggerAutoCloudSync]);
 
   const toggleActivityComplete = useCallback((id, targetDateStr) => {
     const targetDate = targetDateStr || selectedDate;
@@ -212,7 +253,8 @@ export function AppProvider({ children }) {
 
     saveActivitiesForDate(targetDate, updated);
     setActivities([...updated]);
-  }, [selectedDate, getAllActivitiesForDate]);
+    triggerAutoCloudSync();
+  }, [selectedDate, getAllActivitiesForDate, triggerAutoCloudSync]);
 
   const toggleActivityMissed = useCallback((id, targetDateStr) => {
     const targetDate = targetDateStr || selectedDate;
@@ -263,7 +305,8 @@ export function AppProvider({ children }) {
 
     saveActivitiesForDate(targetDate, updated);
     setActivities([...updated]);
-  }, [selectedDate, getAllActivitiesForDate]);
+    triggerAutoCloudSync();
+  }, [selectedDate, getAllActivitiesForDate, triggerAutoCloudSync]);
 
   const updateActivityNote = useCallback((id, reflectionNote, targetDateStr) => {
     const targetDate = targetDateStr || selectedDate;
@@ -285,7 +328,8 @@ export function AppProvider({ children }) {
 
     saveActivitiesForDate(targetDate, updated);
     setActivities([...updated]);
-  }, [selectedDate, getAllActivitiesForDate]);
+    triggerAutoCloudSync();
+  }, [selectedDate, getAllActivitiesForDate, triggerAutoCloudSync]);
 
   // Task library CRUD
   const addTask = useCallback((task) => {
@@ -295,8 +339,9 @@ export function AppProvider({ children }) {
       saveTaskLibrary(updated);
       return updated;
     });
+    triggerAutoCloudSync();
     return newTask;
-  }, []);
+  }, [triggerAutoCloudSync]);
 
   const updateTask = useCallback((id, updates) => {
     setTaskLibrary(prev => {
@@ -304,7 +349,8 @@ export function AppProvider({ children }) {
       saveTaskLibrary(updated);
       return updated;
     });
-  }, []);
+    triggerAutoCloudSync();
+  }, [triggerAutoCloudSync]);
 
   const deleteTask = useCallback((id) => {
     setTaskLibrary(prev => {
@@ -312,7 +358,8 @@ export function AppProvider({ children }) {
       saveTaskLibrary(updated);
       return updated;
     });
-  }, []);
+    triggerAutoCloudSync();
+  }, [triggerAutoCloudSync]);
 
   // Settings updates
   const updateSettings = useCallback((updates) => {
@@ -522,6 +569,45 @@ export function AppProvider({ children }) {
     }
   }, [selectedDate]);
 
+  const saveFirebaseSettings = useCallback((config) => {
+    saveStoredFirebaseConfig(config);
+    setFirebaseConfig(config);
+    setIsFirebaseConnected(Boolean(config && config.apiKey && config.projectId));
+    triggerAutoCloudSync();
+  }, [triggerAutoCloudSync]);
+
+  const removeFirebaseSettings = useCallback(() => {
+    saveStoredFirebaseConfig(null);
+    setFirebaseConfig(null);
+    setIsFirebaseConnected(false);
+  }, []);
+
+  // Listen to remote changes in Firestore from other devices (Phone <-> Laptop)
+  useEffect(() => {
+    if (!accountSync?.accountId || !accountSync?.isLoggedIn || !isFirebaseReady()) {
+      setIsFirebaseConnected(false);
+      return;
+    }
+
+    setIsFirebaseConnected(true);
+    const unsubscribe = listenToFirestore(accountSync.accountId, (remoteDoc) => {
+      if (!remoteDoc || !remoteDoc.data) return;
+      // Prevent loop if change originated from this client within 1.5 seconds
+      if (Date.now() - lastLocalWriteTimeRef.current < 1500) return;
+
+      isSyncingFromRemoteRef.current = true;
+      try {
+        importSyncPayload(remoteDoc.data);
+      } finally {
+        setTimeout(() => {
+          isSyncingFromRemoteRef.current = false;
+        }, 300);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [accountSync?.accountId, accountSync?.isLoggedIn, firebaseConfig, importSyncPayload]);
+
   const value = {
     currentPage, setCurrentPage,
     selectedDate, setSelectedDate,
@@ -534,6 +620,11 @@ export function AppProvider({ children }) {
     mvdDates,
     thesisConfig,
     accountSync,
+    firebaseConfig,
+    isFirebaseConnected,
+    saveFirebaseSettings,
+    removeFirebaseSettings,
+    triggerAutoCloudSync,
     sidebarOpen, setSidebarOpen,
     getAllActivitiesForDate,
     addActivity, updateActivity, deleteActivity, duplicateActivity,
