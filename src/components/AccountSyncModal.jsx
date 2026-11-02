@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   X, User, Shield, Smartphone, Laptop, Cloud, Download, Upload,
-  Copy, Check, RefreshCw, AlertCircle, CheckCircle2, Key, LogOut, Flame, Trash2
+  Copy, Check, RefreshCw, AlertCircle, CheckCircle2, Key, LogOut, Flame, Trash2, Save
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { parseFirebaseConfigInput } from '../utils/firebase.js';
@@ -20,6 +20,10 @@ export default function AccountSyncModal({ onClose }) {
   const [accountIdInput, setAccountIdInput] = useState(accountSync?.accountId || 'SN-Shuvo');
   const [syncPinInput, setSyncPinInput] = useState(accountSync?.syncPin || '1234');
   const [displayNameInput, setDisplayNameInput] = useState(settings?.name || 'SN Shuvo');
+
+  // Inline Quick ID Edit states
+  const [isEditingInlineId, setIsEditingInlineId] = useState(false);
+  const [inlineIdInput, setInlineIdInput] = useState(accountSync?.accountId || 'SN-Shuvo');
 
   // Firebase tab states
   const [firebaseInput, setFirebaseInput] = useState(
@@ -50,6 +54,16 @@ export default function AccountSyncModal({ onClose }) {
       setManualAppId(firebaseConfig.appId || '');
     }
   }, [firebaseConfig]);
+
+  useEffect(() => {
+    if (accountSync?.accountId) {
+      setAccountIdInput(accountSync.accountId);
+      setInlineIdInput(accountSync.accountId);
+    }
+    if (accountSync?.syncPin) {
+      setSyncPinInput(accountSync.syncPin);
+    }
+  }, [accountSync?.accountId, accountSync?.syncPin]);
 
   const handleAccountSubmit = (e) => {
     e.preventDefault();
@@ -422,20 +436,65 @@ export default function AccountSyncModal({ onClose }) {
                 </p>
 
                 {/* Account Link Verification Badge */}
-                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '0.75rem 0.85rem', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '0.85rem 1rem', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '0.85rem', color: '#1E293B', fontWeight: 600 }}>
-                      📱 Linked Profile ID: <span style={{ color: '#2563EB', backgroundColor: '#EFF6FF', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>{accountSync?.accountId || 'SN-Shuvo'}</span>
+                    <span style={{ fontSize: '0.875rem', color: '#1E293B', fontWeight: 600 }}>
+                      📱 Linked Profile ID: <span style={{ color: '#2563EB', backgroundColor: '#EFF6FF', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 700 }}>{accountSync?.accountId || 'SN-Shuvo'}</span>
                     </span>
-                    <button
-                      type="button"
-                      className="btn btn--sm btn--outline"
-                      onClick={() => setActiveTab('profile')}
-                      style={{ fontSize: '0.75rem', padding: '0.2rem 0.55rem', borderColor: '#CBD5E1' }}
-                    >
-                      ✏️ Change ID
-                    </button>
+                    {!isEditingInlineId ? (
+                      <button
+                        type="button"
+                        className="btn btn--sm btn--primary"
+                        onClick={() => {
+                          setInlineIdInput(accountSync?.accountId || 'SN-Shuvo');
+                          setIsEditingInlineId(true);
+                        }}
+                        style={{ fontSize: '0.8rem', padding: '0.25rem 0.65rem', backgroundColor: '#4F46E5', borderColor: '#4338CA' }}
+                      >
+                        ✏️ Change ID Here
+                      </button>
+                    ) : null}
                   </div>
+
+                  {isEditingInlineId && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.35rem', padding: '0.75rem', background: '#FFFFFF', borderRadius: '6px', border: '1px solid #CBD5E1' }}>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#334155' }}>
+                        Set Profile ID (ফোন ও ল্যাপটপে হুবহু একই নাম হতে হবে, e.g. <code>SN-Shuvo</code>):
+                      </label>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <input
+                          type="text"
+                          value={inlineIdInput}
+                          onChange={e => setInlineIdInput(e.target.value)}
+                          placeholder="e.g. SN-Shuvo"
+                          style={{ flex: '1 1 180px', padding: '0.4rem 0.6rem', fontSize: '0.85rem', border: '1px solid #94A3B8', borderRadius: '4px' }}
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          className="btn btn--sm btn--primary"
+                          onClick={() => {
+                            if (!inlineIdInput.trim()) return;
+                            createOrLoginAccount(inlineIdInput.trim(), accountSync?.syncPin || '1234');
+                            setIsEditingInlineId(false);
+                            setSyncSuccessMsg(`Profile ID updated to "${inlineIdInput.trim()}"!`);
+                            setTimeout(() => setSyncSuccessMsg(null), 3500);
+                          }}
+                          style={{ backgroundColor: '#10B981', borderColor: '#059669', color: '#FFF' }}
+                        >
+                          <Check size={14} /> Save ID
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn--sm btn--outline"
+                          onClick={() => setIsEditingInlineId(false)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <span style={{ fontSize: '0.75rem', color: '#64748B' }}>
                     ⚠️ লাইভ সিঙ্ক হওয়ার জন্য ফোন এবং ল্যাপটপ দুটিতেই এই Profile ID হুবহু একই (e.g. <code>SN-Shuvo</code>) হতে হবে।
                   </span>
