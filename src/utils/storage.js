@@ -7,6 +7,9 @@ const KEYS = {
   SETTINGS: 'settings',
   COMPLETION_HISTORY: 'completionHistory',
   LEARNING_TRACKER: 'learningTracker',
+  MVD_DATES: 'mvdDates',
+  THESIS_CONFIG: 'thesisConfig',
+  ACCOUNT_SYNC: 'accountSync',
 };
 
 function getKey(key) {
@@ -162,6 +165,56 @@ export function getLearningTracker() {
 
 export function saveLearningTracker(items) {
   saveData(KEYS.LEARNING_TRACKER, items);
+}
+
+// Minimum Viable Day (MVD) dates
+export function getMvdDates() {
+  return loadData(KEYS.MVD_DATES) || {};
+}
+
+export function saveMvdDates(dates) {
+  saveData(KEYS.MVD_DATES, dates);
+}
+
+// Thesis configuration & milestones
+export function getThesisConfig() {
+  const stored = loadData(KEYS.THESIS_CONFIG);
+  if (stored) return stored;
+
+  const target = new Date();
+  target.setDate(target.getDate() + 75);
+  const targetStr = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`;
+
+  return {
+    title: 'Solar Energy Thesis (PVsyst & Solar PV Simulation)',
+    targetDate: targetStr,
+    milestones: [
+      { id: 'm1', title: 'Literature Review & IEEE Papers Synthesis', completed: true },
+      { id: 'm2', title: 'Solar PV Sizing & Mathematical Modeling', completed: false },
+      { id: 'm3', title: 'PVsyst 3D Shading & Horizon Loss Simulation', completed: false },
+      { id: 'm4', title: 'Simulation Results, Sensitivity Analysis & Graphs', completed: false },
+      { id: 'm5', title: 'Thesis Paper Drafting & Final Defense Presentation', completed: false },
+    ],
+  };
+}
+
+export function saveThesisConfig(config) {
+  saveData(KEYS.THESIS_CONFIG, config);
+}
+
+// Account & Multi-Device Sync settings
+export function getAccountSync() {
+  return loadData(KEYS.ACCOUNT_SYNC) || {
+    accountId: '',
+    syncPin: '',
+    isLoggedIn: false,
+    autoSync: false,
+    lastSyncedAt: null,
+  };
+}
+
+export function saveAccountSync(sync) {
+  saveData(KEYS.ACCOUNT_SYNC, sync);
 }
 
 export { KEYS };

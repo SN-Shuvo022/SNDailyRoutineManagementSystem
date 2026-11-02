@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Plus, Edit3, Trash2, Copy, CalendarDays, AlertTriangle, FileText, Check, ChevronLeft, ChevronRight, FastForward
+  Plus, Edit3, Trash2, Copy, CalendarDays, AlertTriangle, FileText, Check,
+  ChevronLeft, ChevronRight, FastForward, X, MessageSquare, Zap, BatteryLow
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import {
@@ -12,6 +13,7 @@ import { getMondaySampleTemplate } from '../utils/sampleData';
 import { saveActivitiesForDate, getActivitiesForDate } from '../utils/storage';
 import ActivityForm from '../components/ActivityForm';
 import ShiftModal from '../components/ShiftModal';
+import NoteModal from '../components/NoteModal';
 import Timeline from '../components/Timeline';
 import '../styles/DailyPlanner.css';
 
@@ -19,20 +21,26 @@ export default function DailyPlanner() {
   const {
     selectedDate, setSelectedDate, getAllActivitiesForDate,
     deleteActivity, duplicateActivity, toggleActivityComplete,
-    setActivities
+    toggleActivityMissed, updateActivityNote,
+    isMinimumViableDay, toggleMinimumViableDay,
+    activities: storedActivities, setActivities
   } = useApp();
 
   const [showForm, setShowForm] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
   const [showShiftModal, setShowShiftModal] = useState(false);
   const [shiftFromTime, setShiftFromTime] = useState(null);
+  const [noteActivity, setNoteActivity] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'timeline'
   const [filterType, setFilterType] = useState('All');
 
+  // Fix: Include storedActivities so editing updates immediately without page refresh
   const activities = useMemo(
     () => getAllActivitiesForDate(selectedDate),
-    [selectedDate, getAllActivitiesForDate]
+    [selectedDate, getAllActivitiesForDate, storedActivities]
   );
+
+  const isMVD = isMinimumViableDay(selectedDate);
 
   const sortedActivities = useMemo(
     () => [...activities].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime)),
@@ -40,12 +48,14 @@ export default function DailyPlanner() {
   );
 
   const filteredActivities = useMemo(() => {
-    if (filterType === 'All') return sortedActivities;
-    if (filterType === 'Fixed') return sortedActivities.filter(a => a.type === 'Fixed Activity');
-    if (filterType === 'Flexible') return sortedActivities.filter(a => a.type === 'Flexible Activity');
-    if (filterType === 'Focus') return sortedActivities.filter(a => a.type === 'Focus Block');
-    if (filterType === 'Prayer') return sortedActivities.filter(a => a.category === 'Prayer');
-    return sortedActivities;
+    let list = sortedActivities;
+    if (filterType === 'Fixed') list = list.filter(a => a.type === 'Fixed Activity');
+    else if (filterType === 'Flexible') list = list.filter(a => a.type === 'Flexible Activity');
+    else if (filterType === 'Focus') list = list.filter(a => a.type === 'Focus Block');
+    else if (filterType === 'Prayer') list = list.filter(a => a.category === 'Prayer');
+
+    // If Minimum Viable Day is active and user didn't select a specific filter, prioritize essential ones
+    return list;
   }, [sortedActivities, filterType]);
 
   const overlaps = useMemo(() => detectOverlaps(activities), [activities]);
@@ -77,6 +87,20 @@ export default function DailyPlanner() {
     setSelectedDate(formatDateStr(current));
   };
 
+  const isEssentialTask = (act) => {
+    return act.category === 'Prayer' ||
+      act.title.toLowerCase().includes('bath') ||
+      act.title.toLowerCase().includes('fajr') ||
+      act.title.toLowerCase().includes('zuhr') ||
+      act.title.toLowerCase().includes('asr') ||
+      act.title.toLowerCase().includes('maghrib') ||
+      act.title.toLowerCase().includes('isha') ||
+      act.title.toLowerCase().includes('sleep') ||
+      act.title.toLowerCase().includes('thesis') ||
+      act.title.toLowerCase().includes('lunch') ||
+      act.title.toLowerCase().includes('dinner');
+  };
+
   return (
     <div className="planner">
       <div className="planner__header">
@@ -99,6 +123,16 @@ export default function DailyPlanner() {
               <ChevronRight size={18} />
             </button>
           </div>
+
+          <button
+            className={`mvd-planner-btn ${isMVD ? 'mvd-planner-btn--active' : ''}`}
+            onClick={() => toggleMinimumViableDay(selectedDate)}
+            title="Toggle Minimum Viable Day mode (Low-Energy Day)"
+          >
+            <BatteryLow size={16} />
+            {isMVD ? 'Low-Energy Day (Active)' : 'Low-Energy Mode'}
+          </button>
+
           <button
             className="btn btn--outline"
             onClick={() => {
@@ -117,6 +151,25 @@ export default function DailyPlanner() {
           </button>
         </div>
       </div>
+
+      {/* MVD Banner when active */}
+      {isMVD && (
+        <div className="mvd-planner-banner">
+          <div className="mvd-planner-banner__left">
+            <span className="mvd-planner-banner__badge">🔋 MINIMUM VIABLE DAY</span>
+            <span className="mvd-planner-banner__text">
+              Low-energy day mode is active. Only essential tasks (5 Prayers, Bath, 30m Thesis, Rest) are highlighted. Optional tasks are de-emphasized.
+            </span>
+          </div>
+          <button
+            className="btn btn--sm btn--outline"
+            onClick={() => toggleMinimumViableDay(selectedDate)}
+            style={{ backgroundColor: '#FFFFFF', borderColor: '#D97706', color: '#B45309' }}
+          >
+            Switch to Normal Day
+          </button>
+        </div>
+      )}
 
       {overlaps.length > 0 && (
         <div className="planner__warnings">
@@ -180,6 +233,8 @@ export default function DailyPlanner() {
         <Timeline
           activities={filteredActivities}
           onToggleComplete={(id) => toggleActivityComplete(id, selectedDate)}
+          onToggleMissed={(id) => toggleActivityMissed(id, selectedDate)}
+          onOpenNote={(act) => setNoteActivity(act)}
           dateStr={selectedDate}
         />
       ) : (
@@ -192,26 +247,55 @@ export default function DailyPlanner() {
             const hasOverlap = overlaps.some(
               o => o.activity1.id === act.id || o.activity2.id === act.id
             );
+            const isEssential = isEssentialTask(act);
+            const cardOpacity = isMVD && !isEssential ? 0.5 : 1;
 
             return (
               <div
                 key={act.id}
-                className={`activity-card ${act.completed ? 'activity-card--done' : ''} ${hasOverlap ? 'activity-card--overlap' : ''}`}
-                style={{ borderLeftColor: color }}
+                className={`activity-card ${act.completed ? 'activity-card--done' : ''} ${act.missed ? 'activity-card--missed' : ''} ${hasOverlap ? 'activity-card--overlap' : ''}`}
+                style={{ borderLeftColor: color, opacity: cardOpacity }}
               >
-                <div className="activity-card__checkbox">
-                  <input
-                    type="checkbox"
-                    checked={act.completed || false}
-                    onChange={() => toggleActivityComplete(act.id, selectedDate)}
-                    aria-label={`Mark ${act.title} completed`}
-                  />
+                {/* 3-Action Buttons Group */}
+                <div className="activity-card__action-group">
+                  <button
+                    className={`activity-card__btn activity-card__btn--check ${act.completed ? 'active' : ''}`}
+                    onClick={() => toggleActivityComplete(act.id, selectedDate)}
+                    title={act.completed ? "Mark incomplete" : "Done (সম্পন্ন)"}
+                  >
+                    <Check size={14} />
+                  </button>
+                  <button
+                    className={`activity-card__btn activity-card__btn--cross ${act.missed ? 'active' : ''}`}
+                    onClick={() => toggleActivityMissed(act.id, selectedDate)}
+                    title={act.missed ? "Clear missed status" : "Missed (করতে পারিনি)"}
+                  >
+                    <X size={14} />
+                  </button>
+                  <button
+                    className={`activity-card__btn activity-card__btn--note ${act.reflectionNote ? 'active' : ''}`}
+                    onClick={() => setNoteActivity(act)}
+                    title={act.reflectionNote ? "Edit Note: " + act.reflectionNote : "Add Reflection Note (দেরি বা আগ-পিছের কারণ)"}
+                  >
+                    <MessageSquare size={13} />
+                  </button>
                 </div>
+
                 <div className="activity-card__content">
                   <div className="activity-card__top">
                     <span className="activity-card__title">{act.title}</span>
+                    {act.missed && (
+                      <span className="activity-card__missed-tag">
+                        <X size={12} /> Missed
+                      </span>
+                    )}
                     {act.isPrayerAuto && (
                       <span className="activity-card__auto-badge">Auto Prayer</span>
+                    )}
+                    {isMVD && isEssential && (
+                      <span style={{ fontSize: '0.7rem', backgroundColor: '#FEF3C7', color: '#B45309', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 600 }}>
+                        ⭐ Essential
+                      </span>
                     )}
                   </div>
                   <div className="activity-card__meta">
@@ -224,8 +308,18 @@ export default function DailyPlanner() {
                     </span>
                     <span className="activity-card__type">{act.type}</span>
                   </div>
+
                   {act.notes && <p className="activity-card__notes">{act.notes}</p>}
+
+                  {/* Reflection Note Box */}
+                  {act.reflectionNote && (
+                    <div className="activity-card__reflection">
+                      <MessageSquare size={14} style={{ flexShrink: 0 }} />
+                      <span>{act.reflectionNote}</span>
+                    </div>
+                  )}
                 </div>
+
                 <div className="activity-card__actions">
                   <button
                     className="icon-btn"
@@ -280,7 +374,16 @@ export default function DailyPlanner() {
           dateStr={selectedDate}
         />
       )}
+
+      {noteActivity && (
+        <NoteModal
+          activity={noteActivity}
+          onClose={() => setNoteActivity(null)}
+          onSaveNote={(note) => {
+            updateActivityNote(noteActivity.id, note, selectedDate);
+          }}
+        />
+      )}
     </div>
   );
 }
-

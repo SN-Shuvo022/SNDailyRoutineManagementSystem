@@ -90,43 +90,146 @@
   color: var(--text-primary);
 }
 
+.timeline__title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
 .timeline__item--done .timeline__title {
   text-decoration: line-through;
   color: var(--text-muted);
 }
 
-.timeline__check {
-  width: 26px;
-  height: 26px;
+.timeline__title--missed {
+  color: var(--danger-600);
+}
+
+.timeline__missed-tag {
+  font-size: 0.675rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
   border-radius: var(--radius-sm);
-  border: 1.5px solid var(--border-subtle);
+  background-color: var(--danger-50);
+  color: var(--danger-600);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.timeline__action-group {
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: #CBD5E1;
-  background-color: var(--bg-surface);
-  cursor: pointer;
-  transition: all 0.2s ease;
+  gap: 0.35rem;
   flex-shrink: 0;
 }
 
-.timeline__check:hover {
+.timeline__btn {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-surface);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+/* 1. Check Button */
+.timeline__btn--check {
+  color: #CBD5E1;
+}
+
+.timeline__btn--check:hover {
   border-color: var(--success-500);
   color: var(--success-500);
   background-color: var(--success-50);
-  transform: scale(1.08);
+  transform: scale(1.05);
 }
 
-.timeline__check--done {
+.timeline__btn--check-done {
   background-color: var(--success-500);
   border-color: var(--success-500);
   color: #FFFFFF !important;
 }
 
-.timeline__check--done:hover {
+.timeline__btn--check-done:hover {
   background-color: var(--success-600);
   border-color: var(--success-600);
+}
+
+/* 2. Cross Button (Missed) */
+.timeline__btn--cross {
+  color: #CBD5E1;
+}
+
+.timeline__btn--cross:hover {
+  border-color: var(--danger-500);
+  color: var(--danger-500);
+  background-color: var(--danger-50);
+  transform: scale(1.05);
+}
+
+.timeline__btn--cross-active {
+  background-color: var(--danger-500);
+  border-color: var(--danger-500);
   color: #FFFFFF !important;
+}
+
+.timeline__btn--cross-active:hover {
+  background-color: var(--danger-600);
+  border-color: var(--danger-600);
+}
+
+/* 3. Note Button */
+.timeline__btn--note {
+  color: var(--text-muted);
+}
+
+.timeline__btn--note:hover {
+  border-color: var(--primary-500);
+  color: var(--primary-600);
+  background-color: var(--primary-50);
+  transform: scale(1.05);
+}
+
+.timeline__btn--note-active {
+  background-color: var(--primary-50);
+  border-color: var(--primary-500);
+  color: var(--primary-600) !important;
+}
+
+/* Reflection Note Box */
+.timeline__reflection-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.45rem 0.65rem;
+  background-color: #FEFCE8;
+  border: 1px solid #FEF08A;
+  border-left: 3px solid #EAB308;
+  border-radius: var(--radius-sm);
+  margin-top: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.timeline__reflection-box:hover {
+  background-color: #FEF9C3;
+}
+
+.timeline__reflection-icon {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.timeline__reflection-text {
+  font-size: 0.775rem;
+  color: #854D0E;
+  line-height: 1.35;
+  font-style: italic;
 }
 
 .timeline__meta {

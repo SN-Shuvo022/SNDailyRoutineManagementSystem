@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Save } from 'lucide-react';
-import { TASK_CATEGORIES, PRIORITIES } from '../utils/constants';
+import { X, Plus, Save, Zap, Battery, Coffee } from 'lucide-react';
+import { TASK_CATEGORIES, PRIORITIES, ENERGY_LEVELS } from '../utils/constants';
 import '../styles/ActivityForm.css';
 
 export default function TaskForm({ task, onSave, onClose }) {
@@ -9,6 +9,7 @@ export default function TaskForm({ task, onSave, onClose }) {
     category: 'Thesis',
     estimatedDuration: 30,
     priority: 'Medium',
+    energyLevel: 'medium',
     deadline: '',
     description: '',
     completed: false,
@@ -21,6 +22,7 @@ export default function TaskForm({ task, onSave, onClose }) {
         category: task.category || 'Thesis',
         estimatedDuration: task.estimatedDuration || 30,
         priority: task.priority || 'Medium',
+        energyLevel: (task.energyLevel || 'medium').toLowerCase(),
         deadline: task.deadline || '',
         description: task.description || '',
         completed: task.completed || false,
@@ -54,7 +56,7 @@ export default function TaskForm({ task, onSave, onClose }) {
               type="text"
               value={form.title}
               onChange={e => handleChange('title', e.target.value)}
-              placeholder="e.g., Read IEEE Paper on Solar Cells..."
+              placeholder="e.g., Read IEEE Paper on Solar Cells / PVsyst Inverter Sizing..."
               required
               autoFocus
             />
@@ -87,13 +89,25 @@ export default function TaskForm({ task, onSave, onClose }) {
               />
             </div>
             <div className="form-group">
-              <label>Deadline (optional)</label>
-              <input
-                type="date"
-                value={form.deadline}
-                onChange={e => handleChange('deadline', e.target.value)}
-              />
+              <label>Energy Level Required</label>
+              <select
+                value={form.energyLevel}
+                onChange={e => handleChange('energyLevel', e.target.value)}
+              >
+                <option value="high">⚡ High Energy (Deep Focus / Simulation)</option>
+                <option value="medium">🔋 Medium Energy (Reading / Assignment)</option>
+                <option value="low">☕ Low Energy (Casual Review / Relaxed)</option>
+              </select>
             </div>
+          </div>
+
+          <div className="form-group">
+            <label>Deadline (optional)</label>
+            <input
+              type="date"
+              value={form.deadline}
+              onChange={e => handleChange('deadline', e.target.value)}
+            />
           </div>
 
           <div className="form-group">

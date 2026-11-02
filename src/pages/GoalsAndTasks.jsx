@@ -18,6 +18,7 @@ export default function GoalsAndTasks() {
   const [editingTask, setEditingTask] = useState(null);
   const [filter, setFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [energyFilter, setEnergyFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' or 'learning'
 
@@ -34,11 +35,12 @@ export default function GoalsAndTasks() {
       if (filter === 'pending' && task.completed) return false;
       if (filter === 'high' && task.priority !== 'High') return false;
       if (categoryFilter !== 'all' && task.category !== categoryFilter) return false;
+      if (energyFilter !== 'all' && (task.energyLevel || 'medium').toLowerCase() !== energyFilter) return false;
       if (searchTerm && !task.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
           !(task.description || '').toLowerCase().includes(searchTerm.toLowerCase())) return false;
       return true;
     });
-  }, [taskLibrary, filter, categoryFilter, searchTerm]);
+  }, [taskLibrary, filter, categoryFilter, energyFilter, searchTerm]);
 
   const handleSaveTask = (formData) => {
     if (editingTask) {
@@ -160,6 +162,12 @@ export default function GoalsAndTasks() {
                 <option value="all">All Categories</option>
                 {TASK_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
+              <select value={energyFilter} onChange={e => setEnergyFilter(e.target.value)} aria-label="Energy filter">
+                <option value="all">⚡ All Energy Levels</option>
+                <option value="high">⚡ High Energy</option>
+                <option value="medium">🔋 Medium Energy</option>
+                <option value="low">☕ Low Energy</option>
+              </select>
             </div>
           </div>
 
@@ -193,6 +201,11 @@ export default function GoalsAndTasks() {
                       <span className={`priority-badge priority-badge--${task.priority.toLowerCase()}`}>
                         {task.priority} Priority
                       </span>
+                      {task.energyLevel && (
+                        <span className={`priority-badge priority-badge--${task.energyLevel.toLowerCase() === 'high' ? 'high' : task.energyLevel.toLowerCase() === 'medium' ? 'medium' : 'low'}`} style={{ backgroundColor: task.energyLevel.toLowerCase() === 'high' ? '#FEE2E2' : task.energyLevel.toLowerCase() === 'medium' ? '#FEF3C7' : '#D1FAE5', color: task.energyLevel.toLowerCase() === 'high' ? '#DC2626' : task.energyLevel.toLowerCase() === 'medium' ? '#D97706' : '#059669' }}>
+                          {task.energyLevel.toLowerCase() === 'high' ? '⚡ High' : task.energyLevel.toLowerCase() === 'medium' ? '🔋 Medium' : '☕ Low'}
+                        </span>
+                      )}
                       <span className="task-card__category">{task.category}</span>
                       <span className="task-card__duration">
                         <Clock size={12} /> {formatDuration(task.estimatedDuration)}

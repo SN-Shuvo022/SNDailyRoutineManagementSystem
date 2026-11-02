@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  LayoutDashboard, CalendarDays, Clock, Target, BarChart3, Settings, X, Menu
+  LayoutDashboard, CalendarDays, Clock, Target, BarChart3, Settings, X, Smartphone
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
+import AccountSyncModal from './AccountSyncModal';
 import '../styles/Sidebar.css';
 
 const navItems = [
@@ -15,7 +16,8 @@ const navItems = [
 ];
 
 export default function Sidebar() {
-  const { currentPage, setCurrentPage, sidebarOpen, setSidebarOpen } = useApp();
+  const { currentPage, setCurrentPage, sidebarOpen, setSidebarOpen, accountSync } = useApp();
+  const [showSyncModal, setShowSyncModal] = useState(false);
 
   return (
     <>
@@ -53,13 +55,29 @@ export default function Sidebar() {
               </button>
             );
           })}
+
+          <button
+            className="sidebar__nav-item"
+            style={{ marginTop: '0.5rem', color: 'var(--primary-600)', backgroundColor: 'var(--primary-50)' }}
+            onClick={() => {
+              setShowSyncModal(true);
+              setSidebarOpen(false);
+            }}
+          >
+            <Smartphone size={20} />
+            <span>Device Sync {accountSync?.isLoggedIn ? `(${accountSync.accountId})` : ''}</span>
+          </button>
         </nav>
 
         <div className="sidebar__footer">
           <p>📍 Offline Personal Planner</p>
-          <p className="sidebar__version">v1.0</p>
+          <p className="sidebar__version">v1.2 · Solar Energy Focus</p>
         </div>
       </aside>
+
+      {showSyncModal && (
+        <AccountSyncModal onClose={() => setShowSyncModal(false)} />
+      )}
     </>
   );
 }

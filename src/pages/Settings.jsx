@@ -1,25 +1,36 @@
 import React, { useState } from 'react';
 import {
-  Settings as SettingsIcon, Save, Download, Upload, Trash2, Clock, Check, AlertTriangle, FileText, User
+  Settings as SettingsIcon, Save, Download, Upload, Trash2, Clock, Check,
+  AlertTriangle, FileText, User, Smartphone, Compass, Plus, X
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { exportAllData, importAllData, clearAllData, saveActivitiesForDate } from '../utils/storage';
 import { getMondaySampleTemplate } from '../utils/sampleData';
 import { getTodayStr } from '../utils/timeUtils';
+import AccountSyncModal from '../components/AccountSyncModal';
 import '../styles/Settings.css';
 
 export default function Settings() {
   const {
-    settings, updateSettings, prayerSettings, updatePrayerSettings, setSelectedDate, setCurrentPage, setActivities
+    settings, updateSettings, prayerSettings, updatePrayerSettings,
+    thesisConfig, updateThesisConfig, toggleThesisMilestone, addThesisMilestone, deleteThesisMilestone,
+    accountSync, setSelectedDate, setCurrentPage, setActivities
   } = useApp();
 
   const [formSettings, setFormSettings] = useState({ ...settings });
   const [formPrayers, setFormPrayers] = useState({ ...prayerSettings });
+  const [formThesis, setFormThesis] = useState({ ...thesisConfig });
+  const [newMilestoneText, setNewMilestoneText] = useState('');
+  const [showSyncModal, setShowSyncModal] = useState(false);
   const [savedMessage, setSavedMessage] = useState(false);
   const [importError, setImportError] = useState(null);
 
   const handleSettingsChange = (field, value) => {
     setFormSettings(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleThesisChange = (field, value) => {
+    setFormThesis(prev => ({ ...prev, [field]: value }));
   };
 
   const handlePrayerTimeChange = (id, field, value) => {
@@ -40,8 +51,16 @@ export default function Settings() {
     e.preventDefault();
     updateSettings(formSettings);
     updatePrayerSettings(formPrayers);
+    updateThesisConfig(formThesis);
     setSavedMessage(true);
     setTimeout(() => setSavedMessage(false), 3000);
+  };
+
+  const handleAddMilestone = (e) => {
+    e.preventDefault();
+    if (!newMilestoneText.trim()) return;
+    addThesisMilestone(newMilestoneText.trim());
+    setNewMilestoneText('');
   };
 
   const handleExport = () => {
@@ -50,7 +69,7 @@ export default function Settings() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `my-daily-planner-backup-${getTodayStr()}.json`;
+    a.download = `sn-routine-backup-${getTodayStr()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -97,7 +116,7 @@ export default function Settings() {
       <div className="settings-page__header">
         <div>
           <h2>Application Settings</h2>
-          <p className="settings-page__subtitle">Configure your planning parameters, prayer timings, and data backup</p>
+          <p className="settings-page__subtitle">Configure your planning parameters, prayer timings, thesis milestones, and device sync</p>
         </div>
         <button className="btn btn--primary" onClick={handleSaveAll}>
           <Save size={16} /> Save Changes
@@ -126,7 +145,7 @@ export default function Settings() {
             <label>Your Name / Nickname</label>
             <input
               type="text"
-              placeholder="e.g., Shakhawat"
+              placeholder="e.g., SN Shuvo"
               value={formSettings.name || ''}
               onChange={e => handleSettingsChange('name', e.target.value)}
             />
@@ -151,6 +170,118 @@ export default function Settings() {
                 required
               />
               <span className="field-hint">e.g., 23:00 PM (11:00 PM sleep time)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Thesis Compass & Milestone Settings (Feature 6) */}
+        <div className="settings-card">
+          <div className="settings-card__header">
+            <div>
+              <h3><Compass size={18} /> Thesis Compass & Milestone Tracker</h3>
+              <p className="settings-card__desc">Track days remaining to your solar thesis submission & manage core milestones.</p>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Thesis / Research Title</label>
+            <input
+              type="text"
+              value={formThesis.title || ''}
+              onChange={e => handleThesisChange('title', e.target.value)}
+              placeholder="e.g. Solar PV System Design & PVsyst Simulation Thesis"
+            />
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Target Submission Date</label>
+              <input
+                type="date"
+                value={formThesis.targetDate || ''}
+                onChange={e => handleThesisChange('targetDate', e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label>Daily Minimum Target (mins)</label>
+              <input
+                type="number"
+                min="15"
+                max="360"
+                value={formThesis.dailyTargetMinutes || 30}
+                onChange={e => handleThesisChange('dailyTargetMinutes', parseInt(e.target.value) || 30)}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label style={{ marginBottom: '0.4rem', display: 'block' }}>Milestones Checklist</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              {(thesisConfig.milestones || []).map(m => (
+                <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.4rem 0.6rem', backgroundColor: 'var(--bg-subtle)', borderRadius: 'var(--radius-sm)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                    <input
+                      type="checkbox"
+                      checked={m.completed}
+                      onChange={() => toggleThesisMilestone(m.id)}
+                    />
+                    <span style={{ textDecoration: m.completed ? 'line-through' : 'none', color: m.completed ? 'var(--text-muted)' : 'var(--text-primary)' }}>
+                      {m.title}
+                    </span>
+                  </label>
+                  <button
+                    type="button"
+                    className="icon-btn icon-btn--danger"
+                    onClick={() => deleteThesisMilestone(m.id)}
+                    title="Delete milestone"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem' }}>
+              <input
+                type="text"
+                placeholder="Add milestone (e.g., PVsyst Inverter Loss Analysis)..."
+                value={newMilestoneText}
+                onChange={e => setNewMilestoneText(e.target.value)}
+                style={{ fontSize: '0.85rem' }}
+              />
+              <button type="button" className="btn btn--secondary btn--sm" onClick={handleAddMilestone}>
+                <Plus size={14} /> Add
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Multi-Device Sync Card */}
+        <div className="settings-card">
+          <div className="settings-card__header">
+            <div>
+              <h3><Smartphone size={18} /> Multi-Device & Account Sync</h3>
+              <p className="settings-card__desc">Sync your routines seamlessly between your laptop and phone.</p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>
+                  Account: {accountSync?.isLoggedIn ? accountSync.accountId : 'Not Connected'}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  {accountSync?.isLoggedIn ? 'Ready for Phone ↔ Laptop transfer' : 'Activate an account to enable instant sync'}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                onClick={() => setShowSyncModal(true)}
+              >
+                <Smartphone size={14} /> Open Sync Manager
+              </button>
             </div>
           </div>
         </div>
@@ -284,7 +415,10 @@ export default function Settings() {
           </div>
         </div>
       </form>
+
+      {showSyncModal && (
+        <AccountSyncModal onClose={() => setShowSyncModal(false)} />
+      )}
     </div>
   );
 }
-

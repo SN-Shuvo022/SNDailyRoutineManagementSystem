@@ -171,3 +171,4 @@ export default function ShiftModal({ onClose, defaultFromTime = null, dateStr = 
     </div>
   );
 }
+

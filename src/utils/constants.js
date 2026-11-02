@@ -67,3 +67,18 @@ export const FOCUS_BLOCK_COLORS = {
   'fb3': '#8B5CF6',
   'fb4': '#F59E0B',
 };
+
+export const ENERGY_LEVELS = [
+  { id: 'low', label: 'Low Energy', icon: '🟢', color: '#10B981', desc: 'Bayan, light reading, revision' },
+  { id: 'medium', label: 'Medium Energy', icon: '🟡', color: '#F59E0B', desc: 'IEEE paper, notes, small tasks' },
+  { id: 'high', label: 'High Energy', icon: '🔴', color: '#EF4444', desc: 'Deep focus, PVsyst, thesis math' },
+];
+
+export const DEFAULT_THESIS_MILESTONES = [
+  { id: 'm1', title: 'Literature Review & IEEE Papers Synthesis', completed: true },
+  { id: 'm2', title: 'Solar PV Sizing & Mathematical Modeling', completed: false },
+  { id: 'm3', title: 'PVsyst 3D Shading & Horizon Loss Simulation', completed: false },
+  { id: 'm4', title: 'Simulation Results, Sensitivity Analysis & Graphs', completed: false },
+  { id: 'm5', title: 'Thesis Paper Drafting & Final Defense Presentation', completed: false },
+];
+

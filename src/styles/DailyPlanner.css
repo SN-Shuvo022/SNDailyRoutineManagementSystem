@@ -150,20 +150,142 @@
   opacity: 0.6;
 }
 
-.activity-card--done .activity-card__title {
-  text-decoration: line-through;
-  color: var(--text-muted);
+.activity-card--missed {
+  opacity: 0.85;
+  background-color: #FEF2F2;
+  border-color: #FECACA;
+}
+
+.activity-card--missed .activity-card__title {
+  color: #DC2626;
 }
 
 .activity-card--overlap {
   border-color: var(--warning-500);
 }
 
-.activity-card__checkbox input {
-  width: 18px;
-  height: 18px;
+.activity-card__action-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.activity-card__btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  background-color: var(--bg-surface);
   cursor: pointer;
-  accent-color: var(--primary-600);
+  transition: all 0.15s ease;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.activity-card__btn:hover {
+  transform: translateY(-1px);
+}
+
+.activity-card__btn--check:hover,
+.activity-card__btn--check.active {
+  background-color: #059669;
+  border-color: #059669;
+  color: #FFFFFF;
+}
+
+.activity-card__btn--cross:hover,
+.activity-card__btn--cross.active {
+  background-color: #DC2626;
+  border-color: #DC2626;
+  color: #FFFFFF;
+}
+
+.activity-card__btn--note:hover,
+.activity-card__btn--note.active {
+  background-color: #4F46E5;
+  border-color: #4F46E5;
+  color: #FFFFFF;
+}
+
+.activity-card__missed-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  background-color: #FEE2E2;
+  color: #DC2626;
+  border-radius: var(--radius-full);
+}
+
+.activity-card__reflection {
+  margin-top: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  background-color: #EFF6FF;
+  border-left: 3px solid #3B82F6;
+  border-radius: var(--radius-sm);
+  font-size: 0.825rem;
+  color: #1E3A8A;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mvd-planner-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+  border: 1px solid #FCD34D;
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.mvd-planner-banner__left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mvd-planner-banner__badge {
+  background-color: #D97706;
+  color: #FFFFFF;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.mvd-planner-banner__text {
+  font-size: 0.85rem;
+  color: #92400E;
+}
+
+.mvd-planner-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.825rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: 1px solid #F59E0B;
+  background-color: #FFFFFF;
+  color: #B45309;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mvd-planner-btn--active {
+  background-color: #F59E0B;
+  color: #FFFFFF;
 }
 
 .activity-card__content {

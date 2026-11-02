@@ -6,6 +6,10 @@ import {
   getSettings, saveSettings,
   getCompletionHistory, saveCompletionHistory,
   getLearningTracker, saveLearningTracker,
+  getMvdDates, saveMvdDates,
+  getThesisConfig, saveThesisConfig,
+  getAccountSync, saveAccountSync,
+  exportAllData, importAllData,
 } from '../utils/storage';
 import { getTodayStr, generateId, timeToMinutes, minutesToTime } from '../utils/timeUtils';
 import { getDefaultTasks } from '../utils/suggestions';
@@ -21,6 +25,9 @@ export function AppProvider({ children }) {
   const [settings, setSettings] = useState(null);
   const [completionHistory, setCompletionHistory] = useState({});
   const [learningTracker, setLearningTracker] = useState([]);
+  const [mvdDates, setMvdDates] = useState({});
+  const [thesisConfig, setThesisConfig] = useState(null);
+  const [accountSync, setAccountSync] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Load initial data
@@ -35,6 +42,12 @@ export function AppProvider({ children }) {
     setCompletionHistory(history);
     const learning = getLearningTracker();
     setLearningTracker(learning);
+    const mvd = getMvdDates();
+    setMvdDates(mvd);
+    const tc = getThesisConfig();
+    setThesisConfig(tc);
+    const as = getAccountSync();
+    setAccountSync(as);
   }, []);
 
   // Load activities when date changes
@@ -98,36 +111,54 @@ export function AppProvider({ children }) {
   }, [prayerSettings, getPrayerActivitiesForDate]);
 
   // Activity CRUD
-  const addActivity = useCallback((activity) => {
-    const newAct = { ...activity, id: generateId(), completed: false };
-    const updated = [...getActivitiesForDate(selectedDate), newAct];
-    saveActivitiesForDate(selectedDate, updated);
-    setActivities(updated);
+  const addActivity = useCallback((activity, targetDateStr = null) => {
+    const targetDate = targetDateStr || selectedDate;
+    const newAct = { ...activity, id: generateId(), completed: false, status: 'pending' };
+    const current = getActivitiesForDate(targetDate);
+    const updated = [...current, newAct];
+    saveActivitiesForDate(targetDate, updated);
+    setActivities([...updated]);
     return newAct;
   }, [selectedDate]);
 
-  const updateActivity = useCallback((id, updates) => {
-    const current = getActivitiesForDate(selectedDate);
-    const updated = current.map(a => a.id === id ? { ...a, ...updates } : a);
-    saveActivitiesForDate(selectedDate, updated);
-    setActivities(updated);
-  }, [selectedDate]);
+  const updateActivity = useCallback((id, updates, targetDateStr = null) => {
+    const targetDate = targetDateStr || selectedDate;
+    const current = getActivitiesForDate(targetDate);
+    const existingIndex = current.findIndex(a => a.id === id);
 
-  const deleteActivity = useCallback((id) => {
-    const current = getActivitiesForDate(selectedDate);
+    let updated;
+    if (existingIndex !== -1) {
+      updated = current.map(a => a.id === id ? { ...a, ...updates } : a);
+    } else {
+      const all = getAllActivitiesForDate(targetDate);
+      const found = all.find(a => a.id === id);
+      if (found) {
+        updated = [...current, { ...found, ...updates }];
+      } else {
+        updated = current;
+      }
+    }
+    saveActivitiesForDate(targetDate, updated);
+    setActivities([...updated]);
+  }, [selectedDate, getAllActivitiesForDate]);
+
+  const deleteActivity = useCallback((id, targetDateStr = null) => {
+    const targetDate = targetDateStr || selectedDate;
+    const current = getActivitiesForDate(targetDate);
     const updated = current.filter(a => a.id !== id);
-    saveActivitiesForDate(selectedDate, updated);
-    setActivities(updated);
+    saveActivitiesForDate(targetDate, updated);
+    setActivities([...updated]);
   }, [selectedDate]);
 
-  const duplicateActivity = useCallback((id) => {
-    const current = getActivitiesForDate(selectedDate);
+  const duplicateActivity = useCallback((id, targetDateStr = null) => {
+    const targetDate = targetDateStr || selectedDate;
+    const current = getActivitiesForDate(targetDate);
     const source = current.find(a => a.id === id);
     if (source) {
-      const newAct = { ...source, id: generateId(), completed: false };
+      const newAct = { ...source, id: generateId(), completed: false, status: 'pending' };
       const updated = [...current, newAct];
-      saveActivitiesForDate(selectedDate, updated);
-      setActivities(updated);
+      saveActivitiesForDate(targetDate, updated);
+      setActivities([...updated]);
     }
   }, [selectedDate]);
 
@@ -144,18 +175,21 @@ export function AppProvider({ children }) {
       nowCompleted = !current[existingIndex].completed;
       updated = current.map(a => {
         if (a.id === id) {
-          targetAct = { ...a, completed: nowCompleted };
+          targetAct = {
+            ...a,
+            completed: nowCompleted,
+            status: nowCompleted ? 'completed' : 'pending'
+          };
           return targetAct;
         }
         return a;
       });
     } else {
-      // It's a dynamically generated auto-prayer or template activity
       const all = getAllActivitiesForDate(targetDate);
       const found = all.find(a => a.id === id);
       if (found) {
         nowCompleted = true;
-        targetAct = { ...found, completed: true };
+        targetAct = { ...found, completed: true, status: 'completed' };
         updated = [...current, targetAct];
       } else {
         return;
@@ -167,6 +201,7 @@ export function AppProvider({ children }) {
     if (!history[targetDate]) history[targetDate] = {};
     history[targetDate][id] = {
       completed: nowCompleted,
+      status: nowCompleted ? 'completed' : 'pending',
       completedAt: nowCompleted ? new Date().toISOString() : null,
       title: targetAct.title,
       category: targetAct.category,
@@ -176,11 +211,80 @@ export function AppProvider({ children }) {
     setCompletionHistory({ ...history });
 
     saveActivitiesForDate(targetDate, updated);
-    if (targetDate === selectedDate) {
-      setActivities(updated);
+    setActivities([...updated]);
+  }, [selectedDate, getAllActivitiesForDate]);
+
+  const toggleActivityMissed = useCallback((id, targetDateStr) => {
+    const targetDate = targetDateStr || selectedDate;
+    const current = getActivitiesForDate(targetDate);
+    const existingIndex = current.findIndex(a => a.id === id);
+
+    let updated;
+    let nowMissed = false;
+    let targetAct = null;
+
+    if (existingIndex !== -1) {
+      const act = current[existingIndex];
+      nowMissed = act.status !== 'missed';
+      updated = current.map(a => {
+        if (a.id === id) {
+          targetAct = {
+            ...a,
+            status: nowMissed ? 'missed' : 'pending',
+            completed: false
+          };
+          return targetAct;
+        }
+        return a;
+      });
     } else {
-      setActivities([...getActivitiesForDate(selectedDate)]);
+      const all = getAllActivitiesForDate(targetDate);
+      const found = all.find(a => a.id === id);
+      if (found) {
+        nowMissed = true;
+        targetAct = { ...found, status: 'missed', completed: false };
+        updated = [...current, targetAct];
+      } else {
+        return;
+      }
     }
+
+    const history = getCompletionHistory();
+    if (!history[targetDate]) history[targetDate] = {};
+    history[targetDate][id] = {
+      completed: false,
+      status: nowMissed ? 'missed' : 'pending',
+      missedAt: nowMissed ? new Date().toISOString() : null,
+      title: targetAct.title,
+      category: targetAct.category,
+    };
+    saveCompletionHistory(history);
+    setCompletionHistory({ ...history });
+
+    saveActivitiesForDate(targetDate, updated);
+    setActivities([...updated]);
+  }, [selectedDate, getAllActivitiesForDate]);
+
+  const updateActivityNote = useCallback((id, reflectionNote, targetDateStr) => {
+    const targetDate = targetDateStr || selectedDate;
+    const current = getActivitiesForDate(targetDate);
+    const existingIndex = current.findIndex(a => a.id === id);
+
+    let updated;
+    if (existingIndex !== -1) {
+      updated = current.map(a => a.id === id ? { ...a, reflectionNote } : a);
+    } else {
+      const all = getAllActivitiesForDate(targetDate);
+      const found = all.find(a => a.id === id);
+      if (found) {
+        updated = [...current, { ...found, reflectionNote }];
+      } else {
+        return;
+      }
+    }
+
+    saveActivitiesForDate(targetDate, updated);
+    setActivities([...updated]);
   }, [selectedDate, getAllActivitiesForDate]);
 
   // Task library CRUD
@@ -309,6 +413,115 @@ export function AppProvider({ children }) {
     return shiftedCount;
   }, [selectedDate, settings]);
 
+  // Minimum Viable Day (MVD) helpers
+  const isMinimumViableDay = useCallback((dateStr) => {
+    const target = dateStr || selectedDate;
+    return Boolean(mvdDates[target]);
+  }, [mvdDates, selectedDate]);
+
+  const toggleMinimumViableDay = useCallback((dateStr) => {
+    const target = dateStr || selectedDate;
+    setMvdDates(prev => {
+      const updated = { ...prev, [target]: !prev[target] };
+      saveMvdDates(updated);
+      return updated;
+    });
+  }, [selectedDate]);
+
+  // Thesis Config & Milestone helpers
+  const updateThesisConfig = useCallback((updates) => {
+    setThesisConfig(prev => {
+      const updated = { ...prev, ...updates };
+      saveThesisConfig(updated);
+      return updated;
+    });
+  }, []);
+
+  const toggleThesisMilestone = useCallback((milestoneId) => {
+    setThesisConfig(prev => {
+      const updatedMilestones = prev.milestones.map(m =>
+        m.id === milestoneId ? { ...m, completed: !m.completed } : m
+      );
+      const updated = { ...prev, milestones: updatedMilestones };
+      saveThesisConfig(updated);
+      return updated;
+    });
+  }, []);
+
+  const addThesisMilestone = useCallback((title) => {
+    if (!title || !title.trim()) return;
+    setThesisConfig(prev => {
+      const newMilestone = { id: generateId(), title: title.trim(), completed: false };
+      const updated = { ...prev, milestones: [...prev.milestones, newMilestone] };
+      saveThesisConfig(updated);
+      return updated;
+    });
+  }, []);
+
+  const deleteThesisMilestone = useCallback((milestoneId) => {
+    setThesisConfig(prev => {
+      const updated = { ...prev, milestones: prev.milestones.filter(m => m.id !== milestoneId) };
+      saveThesisConfig(updated);
+      return updated;
+    });
+  }, []);
+
+  // Account & Sync helpers
+  const updateAccountSync = useCallback((updates) => {
+    setAccountSync(prev => {
+      const updated = { ...prev, ...updates };
+      saveAccountSync(updated);
+      return updated;
+    });
+  }, []);
+
+  const createOrLoginAccount = useCallback((accountId, syncPin) => {
+    const updated = {
+      accountId: accountId.trim(),
+      syncPin: syncPin.trim(),
+      isLoggedIn: true,
+      lastSyncedAt: new Date().toISOString(),
+      autoSync: true,
+    };
+    setAccountSync(updated);
+    saveAccountSync(updated);
+    return updated;
+  }, []);
+
+  const logoutAccount = useCallback(() => {
+    const updated = {
+      accountId: '',
+      syncPin: '',
+      isLoggedIn: false,
+      lastSyncedAt: null,
+      autoSync: false,
+    };
+    setAccountSync(updated);
+    saveAccountSync(updated);
+  }, []);
+
+  const exportSyncPayload = useCallback(() => {
+    return exportAllData();
+  }, []);
+
+  const importSyncPayload = useCallback((payload) => {
+    try {
+      importAllData(payload);
+      setSettings(getSettings());
+      setPrayerSettings(getPrayerSettings());
+      setTaskLibrary(getTaskLibrary());
+      setCompletionHistory(getCompletionHistory());
+      setLearningTracker(getLearningTracker());
+      setMvdDates(getMvdDates());
+      setThesisConfig(getThesisConfig());
+      setActivities(getActivitiesForDate(selectedDate));
+      return true;
+    } catch (e) {
+      console.error('Import sync error:', e);
+      return false;
+    }
+  }, [selectedDate]);
+
   const value = {
     currentPage, setCurrentPage,
     selectedDate, setSelectedDate,
@@ -318,17 +531,26 @@ export function AppProvider({ children }) {
     settings,
     completionHistory,
     learningTracker,
+    mvdDates,
+    thesisConfig,
+    accountSync,
     sidebarOpen, setSidebarOpen,
     getAllActivitiesForDate,
     addActivity, updateActivity, deleteActivity, duplicateActivity,
     toggleActivityComplete,
+    toggleActivityMissed,
+    updateActivityNote,
     addTask, updateTask, deleteTask,
     updateSettings, updatePrayerSettings,
     addLearningItem, updateLearningItem, deleteLearningItem,
     shiftActivities,
+    isMinimumViableDay, toggleMinimumViableDay,
+    updateThesisConfig, toggleThesisMilestone, addThesisMilestone, deleteThesisMilestone,
+    updateAccountSync, createOrLoginAccount, logoutAccount,
+    exportSyncPayload, importSyncPayload,
   };
 
-  if (!settings || !prayerSettings) return null; // Loading
+  if (!settings || !prayerSettings || !thesisConfig || !accountSync) return null; // Loading
 
   return (
     <AppContext.Provider value={value}>

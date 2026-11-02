@@ -7,14 +7,15 @@ const DEFAULT_PRIORITY_ORDER = {
 };
 
 // Get task suggestions for a free slot
-export function getSuggestionsForSlot(freeSlot, taskLibrary, scheduledActivities, settings) {
+export function getSuggestionsForSlot(freeSlot, taskLibrary, scheduledActivities, settings, energyFilter = 'all') {
   const slotDuration = freeSlot.duration;
   const rules = settings?.suggestionRules || [];
 
-  // Filter tasks: not completed, fits in slot, not already scheduled at overlapping time
+  // Filter tasks: not completed, fits in slot, not already scheduled at overlapping time, matches energy level if set
   const availableTasks = taskLibrary.filter(task => {
     if (task.completed) return false;
     if (task.estimatedDuration > slotDuration) return false;
+    if (energyFilter !== 'all' && task.energyLevel && task.energyLevel !== energyFilter) return false;
 
     // Check if already scheduled at overlapping time
     const isScheduled = scheduledActivities.some(act =>
@@ -88,6 +89,7 @@ export function getDefaultTasks() {
       category: 'Thesis',
       estimatedDuration: 90,
       priority: 'High',
+      energyLevel: 'high',
       deadline: '',
       description: 'Deep work session on thesis research and writing',
       completed: false,
@@ -98,6 +100,7 @@ export function getDefaultTasks() {
       category: 'PVsyst',
       estimatedDuration: 60,
       priority: 'High',
+      energyLevel: 'high',
       deadline: '',
       description: 'Practice PVsyst software for solar system simulation',
       completed: false,
@@ -108,6 +111,7 @@ export function getDefaultTasks() {
       category: 'Solar System Design',
       estimatedDuration: 60,
       priority: 'High',
+      energyLevel: 'high',
       deadline: '',
       description: 'Study solar system design principles and calculations',
       completed: false,
@@ -118,6 +122,7 @@ export function getDefaultTasks() {
       category: 'Research Paper',
       estimatedDuration: 30,
       priority: 'Medium',
+      energyLevel: 'medium',
       deadline: '',
       description: 'Read and annotate IEEE research papers on solar energy',
       completed: false,
@@ -128,6 +133,7 @@ export function getDefaultTasks() {
       category: 'Programming',
       estimatedDuration: 45,
       priority: 'Medium',
+      energyLevel: 'medium',
       deadline: '',
       description: 'Practice programming and technical skills',
       completed: false,
@@ -138,6 +144,7 @@ export function getDefaultTasks() {
       category: 'Reading',
       estimatedDuration: 20,
       priority: 'Low',
+      energyLevel: 'low',
       deadline: '',
       description: 'Read educational or self-improvement books',
       completed: false,
@@ -148,6 +155,7 @@ export function getDefaultTasks() {
       category: 'Islamic Learning',
       estimatedDuration: 15,
       priority: 'Low',
+      energyLevel: 'low',
       deadline: '',
       description: 'Listen to Islamic lectures and bayan',
       completed: false,
@@ -158,6 +166,7 @@ export function getDefaultTasks() {
       category: 'Personal Development',
       estimatedDuration: 20,
       priority: 'Medium',
+      energyLevel: 'low',
       deadline: '',
       description: 'Review notes and revise daily learning',
       completed: false,
