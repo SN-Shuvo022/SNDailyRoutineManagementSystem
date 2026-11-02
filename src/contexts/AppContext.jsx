@@ -570,12 +570,28 @@ export function AppProvider({ children }) {
     }
   }, [selectedDate]);
 
-  const saveFirebaseSettings = useCallback((config) => {
+  const saveFirebaseSettings = useCallback((config, accountIdHint = null) => {
     saveStoredFirebaseConfig(config);
     setFirebaseConfig(config);
     setIsFirebaseConnected(Boolean(config && config.apiKey && config.projectId));
+
+    // Ensure account is logged in and active
+    const current = getAccountSync();
+    if (!current?.accountId || !current?.isLoggedIn) {
+      const activeId = accountIdHint || current?.accountId || settings?.name || 'SN-Shuvo';
+      const updated = {
+        accountId: activeId.trim(),
+        syncPin: current?.syncPin || '1234',
+        isLoggedIn: true,
+        lastSyncedAt: new Date().toISOString(),
+        autoSync: true,
+      };
+      setAccountSync(updated);
+      saveAccountSync(updated);
+    }
+
     triggerAutoCloudSync();
-  }, [triggerAutoCloudSync]);
+  }, [settings, triggerAutoCloudSync]);
 
   const removeFirebaseSettings = useCallback(() => {
     saveStoredFirebaseConfig(null);

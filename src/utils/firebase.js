@@ -102,29 +102,53 @@ export function listenToFirestore(accountId, onDataReceived) {
   }
 }
 
-// Helper to parse Firebase config copied from Firebase console (JSON or JS object string)
+// Helper to parse Firebase config copied from Firebase console (JSON, JS object snippet, script tag, or full import block)
 export function parseFirebaseConfigInput(inputStr) {
   if (typeof inputStr === 'object' && inputStr !== null) return inputStr;
   const str = inputStr.trim();
 
-  // Try standard JSON first
+  // 1. Try standard JSON first
   try {
     return JSON.parse(str);
-  } catch (e) {
-    // If user copied "const firebaseConfig = { ... };"
-    try {
-      const match = str.match(/\{[\s\S]*\}/);
-      if (match) {
-        // Convert JS object properties to valid JSON
-        const jsonLike = match[0]
-          .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":')
-          .replace(/'/g, '"');
-        return JSON.parse(jsonLike);
-      }
-    } catch (innerErr) {
-      throw new Error('Could not parse Firebase config. Please provide valid JSON or the copied snippet.');
-    }
+  } catch (e) {}
+
+  // 2. Extract individual fields via regex (works regardless of comments, imports, script tags, quotes)
+  const extractField = (fieldName) => {
+    const regex = new RegExp(`['"]?${fieldName}['"]?\\s*:\\s*['"\`]([^'"\`]+)['"\`]`, 'i');
+    const match = str.match(regex);
+    return match ? match[1].trim() : '';
+  };
+
+  const apiKey = extractField('apiKey');
+  const projectId = extractField('projectId');
+  const authDomain = extractField('authDomain');
+  const storageBucket = extractField('storageBucket');
+  const messagingSenderId = extractField('messagingSenderId');
+  const appId = extractField('appId');
+
+  if (apiKey && projectId) {
+    return {
+      apiKey,
+      projectId,
+      authDomain: authDomain || `${projectId}.firebaseapp.com`,
+      storageBucket: storageBucket || `${projectId}.appspot.com`,
+      messagingSenderId: messagingSenderId || '',
+      appId: appId || ''
+    };
   }
-  throw new Error('Invalid Firebase configuration format.');
+
+  // 3. Fallback: try finding object block { ... }
+  try {
+    const match = str.match(/\{[\s\S]*\}/);
+    if (match) {
+      const jsonLike = match[0]
+        .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":')
+        .replace(/'/g, '"');
+      const parsed = JSON.parse(jsonLike);
+      if (parsed.apiKey && parsed.projectId) return parsed;
+    }
+  } catch (innerErr) {}
+
+  throw new Error('Firebase config-এ apiKey এবং projectId পাওয়া যায়নি। দয়া করে সম্পূর্ণ কোডটি কপি করে পেস্ট করুন।');
 }
 

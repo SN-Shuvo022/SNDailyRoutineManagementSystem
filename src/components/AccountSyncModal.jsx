@@ -25,7 +25,12 @@ export default function AccountSyncModal({ onClose }) {
   const [firebaseInput, setFirebaseInput] = useState(
     firebaseConfig ? JSON.stringify(firebaseConfig, null, 2) : ''
   );
+  const [inputMode, setInputMode] = useState('paste'); // 'paste' or 'manual'
+  const [manualApiKey, setManualApiKey] = useState(firebaseConfig?.apiKey || '');
+  const [manualProjectId, setManualProjectId] = useState(firebaseConfig?.projectId || '');
+  const [manualAppId, setManualAppId] = useState(firebaseConfig?.appId || '');
   const [firebaseConnecting, setFirebaseConnecting] = useState(false);
+  const [firebaseInlineMsg, setFirebaseInlineMsg] = useState(null);
 
   // Device Link states
   const [generatedCode, setGeneratedCode] = useState('');
@@ -40,6 +45,9 @@ export default function AccountSyncModal({ onClose }) {
   useEffect(() => {
     if (firebaseConfig) {
       setFirebaseInput(JSON.stringify(firebaseConfig, null, 2));
+      setManualApiKey(firebaseConfig.apiKey || '');
+      setManualProjectId(firebaseConfig.projectId || '');
+      setManualAppId(firebaseConfig.appId || '');
     }
   }, [firebaseConfig]);
 
@@ -57,22 +65,71 @@ export default function AccountSyncModal({ onClose }) {
 
   const handleSaveFirebase = (e) => {
     e.preventDefault();
-    if (!firebaseInput.trim()) {
-      setSyncErrorMsg('Please paste your Firebase configuration code first.');
+    setFirebaseInlineMsg(null);
+    setSyncErrorMsg(null);
+
+    let parsed = null;
+
+    if (inputMode === 'paste') {
+      if (!firebaseInput.trim()) {
+        setFirebaseInlineMsg({
+          type: 'error',
+          text: 'দয়া করে নিচের বক্সে আপনার Firebase কনফিগারেশন কোডটি পেস্ট করুন।'
+        });
+        return;
+      }
+
+      setFirebaseConnecting(true);
+      try {
+        parsed = parseFirebaseConfigInput(firebaseInput);
+      } catch (err) {
+        setFirebaseInlineMsg({
+          type: 'error',
+          text: 'Firebase config error: ' + err.message
+        });
+        setFirebaseConnecting(false);
+        return;
+      }
+    } else {
+      if (!manualApiKey.trim() || !manualProjectId.trim()) {
+        setFirebaseInlineMsg({
+          type: 'error',
+          text: 'দয়া করে API Key এবং Project ID উভয় ফিল্ড পূরণ করুন।'
+        });
+        return;
+      }
+
+      parsed = {
+        apiKey: manualApiKey.trim(),
+        projectId: manualProjectId.trim(),
+        authDomain: `${manualProjectId.trim()}.firebaseapp.com`,
+        storageBucket: `${manualProjectId.trim()}.appspot.com`,
+        messagingSenderId: '',
+        appId: manualAppId.trim(),
+      };
+    }
+
+    if (!parsed || !parsed.apiKey || !parsed.projectId) {
+      setFirebaseInlineMsg({
+        type: 'error',
+        text: 'apiKey বা projectId পাওয়া যায়নি। দয়া করে কোডটি পুনরায় চেক করুন।'
+      });
+      setFirebaseConnecting(false);
       return;
     }
-    setSyncErrorMsg(null);
-    setFirebaseConnecting(true);
+
     try {
-      const parsed = parseFirebaseConfigInput(firebaseInput);
-      if (!parsed.apiKey || !parsed.projectId) {
-        throw new Error('Missing apiKey or projectId in Firebase configuration.');
-      }
       saveFirebaseSettings(parsed);
-      setSyncSuccessMsg('🔥 Firebase Live Sync connected successfully! Phone and Laptop are now in real-time sync.');
-      setTimeout(() => setSyncSuccessMsg(null), 4000);
+      setFirebaseInlineMsg({
+        type: 'success',
+        text: '🎉 Firebase Live Sync সফলভাবে কানেক্ট হয়েছে! ফোন ও ল্যাপটপের মধ্যে রিয়েল-টাইম সিঙ্ক চালু হয়ে গেছে।'
+      });
+      setTimeout(() => setFirebaseInlineMsg(null), 5000);
     } catch (err) {
-      setSyncErrorMsg('Firebase config error: ' + err.message);
+      setFirebaseInlineMsg({
+        type: 'error',
+        text: 'কানেক্ট করতে সমস্যা হয়েছে: ' + err.message
+      });
     } finally {
       setFirebaseConnecting(false);
     }
@@ -82,16 +139,25 @@ export default function AccountSyncModal({ onClose }) {
     if (window.confirm('Disconnect Firebase Live Sync? Your local routines will remain safe.')) {
       removeFirebaseSettings();
       setFirebaseInput('');
-      setSyncSuccessMsg('Firebase Live Sync disconnected.');
-      setTimeout(() => setSyncSuccessMsg(null), 3000);
+      setManualApiKey('');
+      setManualProjectId('');
+      setManualAppId('');
+      setFirebaseInlineMsg({
+        type: 'success',
+        text: 'Firebase Live Sync ডিসকানেক্ট করা হয়েছে।'
+      });
+      setTimeout(() => setFirebaseInlineMsg(null), 3000);
     }
   };
 
   const handleTestFirebasePing = () => {
-    setSyncErrorMsg(null);
+    setFirebaseInlineMsg(null);
     triggerAutoCloudSync();
-    setSyncSuccessMsg('📡 Live sync ping sent to Firebase! Check other device to see instant live update.');
-    setTimeout(() => setSyncSuccessMsg(null), 4000);
+    setFirebaseInlineMsg({
+      type: 'success',
+      text: '📡 টেস্ট সিঙ্ক ডাটা Firebase-এ পাঠানো হয়েছে! অন্য ডিভাইসে লাইভ দেখতে পাবেন।'
+    });
+    setTimeout(() => setFirebaseInlineMsg(null), 4000);
   };
 
   const handleGenerateCode = () => {
@@ -378,24 +444,89 @@ export default function AccountSyncModal({ onClose }) {
                   </ol>
                 </div>
 
+                {/* Input Mode Toggle */}
+                <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', background: 'var(--bg-subtle)', padding: '0.25rem', borderRadius: 'var(--radius-sm)', width: 'fit-content' }}>
+                  <button
+                    type="button"
+                    onClick={() => setInputMode('paste')}
+                    className={`btn btn--sm ${inputMode === 'paste' ? 'btn--primary' : 'btn--outline'}`}
+                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}
+                  >
+                    📋 Paste Code Snippet
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInputMode('manual')}
+                    className={`btn btn--sm ${inputMode === 'manual' ? 'btn--primary' : 'btn--outline'}`}
+                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}
+                  >
+                    ✏️ Manual Input (API Key & ID)
+                  </button>
+                </div>
+
                 <form onSubmit={handleSaveFirebase} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                    Paste Firebase Configuration (JSON or JS Object):
-                  </label>
-                  <textarea
-                    rows={5}
-                    value={firebaseInput}
-                    onChange={e => setFirebaseInput(e.target.value)}
-                    placeholder={`e.g.:\nconst firebaseConfig = {\n  apiKey: "AIzaSy...",\n  projectId: "sn-planner-123",\n  ...\n};`}
-                    style={{ width: '100%', fontFamily: 'Consolas, monospace', fontSize: '0.775rem' }}
-                  />
+                  {inputMode === 'paste' ? (
+                    <div>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>
+                        Paste Firebase Configuration (JSON or JS Object):
+                      </label>
+                      <textarea
+                        rows={5}
+                        value={firebaseInput}
+                        onChange={e => setFirebaseInput(e.target.value)}
+                        placeholder={`e.g.:\nconst firebaseConfig = {\n  apiKey: "AIzaSy...",\n  projectId: "sn-planner-123",\n  ...\n};`}
+                        style={{ width: '100%', fontFamily: 'Consolas, monospace', fontSize: '0.775rem' }}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                      <div className="form-group">
+                        <label style={{ fontSize: '0.825rem', fontWeight: 600 }}>apiKey *</label>
+                        <input
+                          type="text"
+                          value={manualApiKey}
+                          onChange={e => setManualApiKey(e.target.value)}
+                          placeholder="e.g. AIzaSyBxxxxxxxxxxxxxxx"
+                          style={{ fontSize: '0.825rem' }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label style={{ fontSize: '0.825rem', fontWeight: 600 }}>projectId *</label>
+                        <input
+                          type="text"
+                          value={manualProjectId}
+                          onChange={e => setManualProjectId(e.target.value)}
+                          placeholder="e.g. sndailyplanner"
+                          style={{ fontSize: '0.825rem' }}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label style={{ fontSize: '0.825rem', fontWeight: 600 }}>appId (optional)</label>
+                        <input
+                          type="text"
+                          value={manualAppId}
+                          onChange={e => setManualAppId(e.target.value)}
+                          placeholder="e.g. 1:123456789:web:abcdef"
+                          style={{ fontSize: '0.825rem' }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Inline Message */}
+                  {firebaseInlineMsg && (
+                    <div className={`sync-status-banner ${firebaseInlineMsg.type === 'error' ? 'sync-status-banner--error' : 'sync-status-banner--success'}`}>
+                      {firebaseInlineMsg.type === 'error' ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+                      <span>{firebaseInlineMsg.text}</span>
+                    </div>
+                  )}
 
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <button
                       type="submit"
                       className="btn btn--primary"
-                      disabled={firebaseConnecting || !firebaseInput.trim()}
-                      style={{ backgroundColor: '#D97706', borderColor: '#B45309' }}
+                      disabled={firebaseConnecting}
+                      style={{ backgroundColor: '#D97706', borderColor: '#B45309', cursor: 'pointer' }}
                     >
                       <Flame size={16} /> {firebaseConnecting ? 'Connecting...' : 'Connect & Activate Firebase Sync'}
                     </button>
