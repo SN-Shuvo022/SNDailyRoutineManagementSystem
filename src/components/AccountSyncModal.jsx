@@ -12,7 +12,7 @@ export default function AccountSyncModal({ onClose }) {
   const {
     accountSync, createOrLoginAccount, logoutAccount, updateAccountSync,
     exportSyncPayload, importSyncPayload, settings, updateSettings,
-    firebaseConfig, isFirebaseConnected, saveFirebaseSettings, removeFirebaseSettings,
+    firebaseConfig, isFirebaseConnected, firebaseError, saveFirebaseSettings, removeFirebaseSettings,
     triggerAutoCloudSync
   } = useApp();
 
@@ -421,6 +421,29 @@ export default function AccountSyncModal({ onClose }) {
                   এর মাধ্যমে আপনি যখনই ফোনে কোনো টাস্কে টিক (`✓`) বা নোট দেবেন, সাথে সাথে <strong>০.১ সেকেন্ডে কোনো রিলোড ছাড়াই আপনার ল্যাপটপে লাইভ আপডেট হয়ে যাবে!</strong>
                 </p>
 
+                {/* Account Link Verification Badge */}
+                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '0.65rem 0.85rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.825rem', color: '#475569' }}>
+                    📱 Linked Profile ID: <strong>{accountSync?.accountId || 'SN-Shuvo'}</strong>
+                  </span>
+                  <span style={{ fontSize: '0.75rem', background: '#D1FAE5', color: '#065F46', padding: '0.15rem 0.5rem', borderRadius: '9999px', fontWeight: 600 }}>
+                    Matching Phone & Laptop
+                  </span>
+                </div>
+
+                {/* Firebase Permission Denied Alert */}
+                {firebaseError === 'permission-denied' && (
+                  <div className="sync-status-banner sync-status-banner--error" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.4rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
+                      <AlertCircle size={18} />
+                      <span>Firebase Security Rules: Permission Denied!</span>
+                    </div>
+                    <p style={{ fontSize: '0.8rem', lineHeight: 1.4 }}>
+                      আপনার ফায়ারবেস ডাটাবেজের রুলস লক করা আছে। দয়া করে <strong>console.firebase.google.com &gt; Firestore Database &gt; Rules</strong> ট্যাবে গিয়ে <code>allow read, write: if true;</code> লিখে <strong>Publish</strong> বাটনে চাপ দিন।
+                    </p>
+                  </div>
+                )}
+
                 {/* Step-by-step instructions */}
                 <div className="firebase-guide-box">
                   <strong style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -550,6 +573,16 @@ export default function AccountSyncModal({ onClose }) {
                         </button>
                       </>
                     )}
+                  </div>
+
+                  {/* Verification Guide Box */}
+                  <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '0.75rem 1rem', borderRadius: '8px', fontSize: '0.8rem', color: '#1E3A8A', marginTop: '0.5rem' }}>
+                    <strong>💡 কীভাবে বুঝবেন সিঙ্ক হচ্ছে:</strong>
+                    <ol style={{ marginLeft: '1.2rem', marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                      <li>ল্যাপটপ ও ফোন দুটিতেই ওয়েবসাইটটি ওপেন রাখুন।</li>
+                      <li>ফোনে যেকোনো একটি টাস্কে টিক (✓) বা ক্রস (✗) দিন।</li>
+                      <li>ল্যাপটপের স্ক্রিনে তাকান—দেখবেন কোনো রিফ্রেশ ছাড়াই তৎক্ষণাৎ টিক হয়ে গেছে!</li>
+                    </ol>
                   </div>
                 </form>
               </div>

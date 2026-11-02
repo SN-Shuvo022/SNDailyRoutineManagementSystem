@@ -60,7 +60,7 @@ export function isFirebaseReady() {
 // Push local state update to Firestore
 export async function pushToFirestore(accountId, payload) {
   const { db } = getFirebaseInstance();
-  if (!db || !accountId) return false;
+  if (!db || !accountId) return { success: false, error: 'Firebase Database not initialized or missing account ID' };
 
   try {
     const sanitizedId = accountId.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
@@ -70,15 +70,15 @@ export async function pushToFirestore(accountId, payload) {
       lastUpdatedClient: Date.now(),
       accountId: accountId.trim(),
     }, { merge: true });
-    return true;
+    return { success: true };
   } catch (err) {
     console.error('Firestore push failed:', err);
-    return false;
+    return { success: false, error: err.message, code: err.code };
   }
 }
 
 // Real-time listener for remote changes from other devices (Phone <-> Laptop)
-export function listenToFirestore(accountId, onDataReceived) {
+export function listenToFirestore(accountId, onDataReceived, onError = null) {
   const { db } = getFirebaseInstance();
   if (!db || !accountId) return () => {};
 
@@ -93,11 +93,13 @@ export function listenToFirestore(accountId, onDataReceived) {
       }
     }, (error) => {
       console.warn('Firestore snapshot listener error:', error);
+      if (onError) onError(error);
     });
 
     return unsubscribe;
   } catch (err) {
     console.error('Error setting up Firestore listener:', err);
+    if (onError) onError(err);
     return () => {};
   }
 }

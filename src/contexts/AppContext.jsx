@@ -36,6 +36,7 @@ export function AppProvider({ children }) {
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [firebaseConfig, setFirebaseConfig] = useState(getStoredFirebaseConfig());
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(isFirebaseReady());
+  const [firebaseError, setFirebaseError] = useState(null);
 
   const lastLocalWriteTimeRef = useRef(0);
   const isSyncingFromRemoteRef = useRef(false);
@@ -49,19 +50,26 @@ export function AppProvider({ children }) {
     cloudSyncTimeoutRef.current = setTimeout(async () => {
       lastLocalWriteTimeRef.current = Date.now();
       const currentAccount = getAccountSync();
-      if (!currentAccount?.accountId || !currentAccount?.isLoggedIn) return;
+      const activeId = currentAccount?.accountId || 'SN-Shuvo';
 
       const payload = exportAllData();
       if (isFirebaseReady()) {
-        const success = await pushToFirestore(currentAccount.accountId, { data: payload });
-        if (success) {
+        const res = await pushToFirestore(activeId, { data: payload });
+        if (res && res.success) {
           setIsFirebaseConnected(true);
+          setFirebaseError(null);
+        } else if (res && res.code === 'permission-denied') {
+          setFirebaseError('permission-denied');
         }
       }
 
       setAccountSync(prev => {
-        if (!prev) return prev;
-        const up = { ...prev, lastSyncedAt: new Date().toISOString() };
+        const up = {
+          ...(prev || {}),
+          accountId: activeId,
+          isLoggedIn: true,
+          lastSyncedAt: new Date().toISOString()
+        };
         saveAccountSync(up);
         return up;
       });
@@ -84,7 +92,18 @@ export function AppProvider({ children }) {
     setMvdDates(mvd);
     const tc = getThesisConfig();
     setThesisConfig(tc);
-    const as = getAccountSync();
+
+    let as = getAccountSync();
+    if (!as || !as.accountId) {
+      as = {
+        accountId: 'SN-Shuvo',
+        syncPin: '1234',
+        isLoggedIn: true,
+        lastSyncedAt: new Date().toISOString(),
+        autoSync: true,
+      };
+      saveAccountSync(as);
+    }
     setAccountSync(as);
   }, []);
 
@@ -601,15 +620,17 @@ export function AppProvider({ children }) {
 
   // Listen to remote changes in Firestore from other devices (Phone <-> Laptop)
   useEffect(() => {
-    if (!accountSync?.accountId || !accountSync?.isLoggedIn || !isFirebaseReady()) {
+    if (!isFirebaseReady()) {
       setIsFirebaseConnected(false);
       return;
     }
 
+    const activeAccountId = accountSync?.accountId || 'SN-Shuvo';
+
     setIsFirebaseConnected(true);
-    const unsubscribe = listenToFirestore(accountSync.accountId, (remoteDoc) => {
+    const unsubscribe = listenToFirestore(activeAccountId, (remoteDoc) => {
       if (!remoteDoc || !remoteDoc.data) return;
-      // Prevent loop if change originated from this client within 1.5 seconds
+      // Prevent echo if change originated from this client within 1.5 seconds
       if (Date.now() - lastLocalWriteTimeRef.current < 1500) return;
 
       isSyncingFromRemoteRef.current = true;
@@ -620,10 +641,14 @@ export function AppProvider({ children }) {
           isSyncingFromRemoteRef.current = false;
         }, 300);
       }
+    }, (err) => {
+      if (err && (err.code === 'permission-denied' || (err.message && err.message.includes('permission')))) {
+        setFirebaseError('permission-denied');
+      }
     });
 
     return () => unsubscribe();
-  }, [accountSync?.accountId, accountSync?.isLoggedIn, firebaseConfig, importSyncPayload]);
+  }, [accountSync?.accountId, firebaseConfig, importSyncPayload]);
 
   const value = {
     currentPage, setCurrentPage,
@@ -640,6 +665,7 @@ export function AppProvider({ children }) {
     isSyncModalOpen, setIsSyncModalOpen,
     firebaseConfig,
     isFirebaseConnected,
+    firebaseError,
     saveFirebaseSettings,
     removeFirebaseSettings,
     triggerAutoCloudSync,
